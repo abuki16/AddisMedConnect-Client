@@ -326,3 +326,4 @@ legend {
     color: #212529;
   }
 }
+ .recommendations{display:grid;gap:.7rem;margin:1.25rem 0;padding:1rem;border:1px solid #b8e3db;border-radius:12px;background:#f1fbf8}.recommendations h3{margin:0;color:#075e54}.recommendations p{margin:.2rem 0;color:#51646a}.recommendations button{display:grid;text-align:left;gap:.15rem;padding:.8rem;border:1px solid #c9d8d7;background:white;border-radius:9px;cursor:pointer}.recommendations button:not(.unavailable):hover{border-color:#078477;background:#e9faf6}.recommendations .unavailable{opacity:.65}.recommendations span,.recommendations small{color:#55666b}

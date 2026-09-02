@@ -1,8 +1,9 @@
 <div class="dispatch-container">
   
   <div class="dispatch-header">
-    <h2>AddisMedConnect</h2>
+    <div><h2>AddisMedConnect</h2>
     <p>Emergency Dispatch & Resource Coordination Center</p>
+    </div><button type="button" class="btn-secondary-link" (click)="auth.logout()">Sign out</button>
   </div>
 
   <!-- LIVE METRICS BAR: Pending Triage Count -->
@@ -98,6 +99,13 @@
           Please provide a valid incident description (minimum 8 characters).
         </div>
       </div>
+
+      <section class="recommendations" *ngIf="recommendations.length">
+        <div><h3>Nearby hospital recommendations</h3><p>Ranked by caller location and free {{ intakeForm.value.wardType }} beds.</p></div>
+        <button type="button" *ngFor="let hospital of recommendations.slice(0, 3)" [class.unavailable]="!hospital.hasRequestedWardCapacity" (click)="selectRecommendedHospital(hospital)">
+          <strong>{{ hospital.hospitalName }}</strong><span>{{ hospital.distanceKm | number:'1.1-1' }} km · {{ hospital.availableBeds }} beds free</span><small>{{ hospital.recommendation }}</small>
+        </button>
+      </section>
     </fieldset>
 
     <!-- 3. Location & Hospital Routing -->

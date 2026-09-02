@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import * as signalR from '@microsoft/signalr';
+import { AuthService } from '../../core/auth.service';
 
 export interface EmergencyCase {
   incidentNumber: string;
@@ -51,16 +52,17 @@ export class TriageComponent implements OnInit, OnDestroy {
   errorMessage: string = '';
   successMessage: string = '';
 
-  // Hospital ID configuration (Tikur Anbessa Hospital GUID)
-  hospitalId: string = '11111111-1111-1111-1111-111111111111'; 
+  hospitalId: string = '';
   
   private apiUrl = 'http://localhost:5057/api';
   private hubUrl = 'http://localhost:5057/hubs/emergency';
   private hubConnection!: signalR.HubConnection;
 
-  constructor(private http: HttpClient, private ngZone: NgZone) {}
+  constructor(private http: HttpClient, private ngZone: NgZone, private auth: AuthService) {}
 
   ngOnInit(): void {
+    this.hospitalId = this.auth.user()?.hospitalId || '';
+    if (!this.hospitalId) { this.errorMessage = 'Your account is not assigned to a hospital. Contact an administrator.'; return; }
     console.log('TriageComponent initialized. Loading data and connecting to SignalR...');
     this.loadData();
     this.initSignalRConnection();
@@ -81,6 +83,7 @@ export class TriageComponent implements OnInit, OnDestroy {
   initSignalRConnection(): void {
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(this.hubUrl, {
+        accessTokenFactory: () => this.auth.token || '',
         skipNegotiation: true,
         transport: signalR.HttpTransportType.WebSockets
       })
@@ -195,7 +198,7 @@ export class TriageComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (beds) => {
           this.ngZone.run(() => {
-            this.availableBeds = (beds || []).filter(b => b.status === 0 || b.id === this.selectedCase?.assignedBedId);
+            this.availableBeds = (beds || []).filter(b => b.status === 0 || String(b.status).toLowerCase() === 'available' || b.id === this.selectedCase?.assignedBedId);
           });
         },
         error: (err) => {
