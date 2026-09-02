@@ -11,13 +11,38 @@ import { loginRedirectGuard, roleGuard } from './core/role.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [loginRedirectGuard] },
-  { path: 'dispatch', component: CreateCaseComponent, canActivate: [roleGuard('Dispatcher', 'SystemAdmin')] },
-  { path: 'assign-resources/:incidentNumber', component: AssignmentDashboardComponent, canActivate: [roleGuard('Dispatcher', 'SystemAdmin')] },
-  { path: 'triage', component: TriageComponent, canActivate: [roleGuard('TriageNurse', 'SystemAdmin')] },
-  { path: 'driver', component: DriverComponent, canActivate: [roleGuard('AmbulanceDriver', 'SystemAdmin')] },
-  { path: 'discharge', component: DischargeClerkComponent, canActivate: [roleGuard('DischargeClerk', 'SystemAdmin')] },
+  {
+    path: 'dispatch',
+    component: CreateCaseComponent,
+    canActivate: [roleGuard('Dispatcher', 'SystemAdmin')],
+  },
+  {
+    path: 'assign-resources/:incidentNumber',
+    component: AssignmentDashboardComponent,
+    canActivate: [roleGuard('Dispatcher', 'SystemAdmin')],
+  },
+  {
+    path: 'triage',
+    component: TriageComponent,
+    canActivate: [roleGuard('TriageNurse', 'SystemAdmin')],
+  },
+  {
+    path: 'driver',
+    component: DriverComponent,
+    canActivate: [roleGuard('AmbulanceDriver', 'SystemAdmin')],
+  },
+  {
+    path: 'discharge',
+    component: DischargeClerkComponent,
+    canActivate: [roleGuard('DischargeClerk', 'SystemAdmin')],
+  },
   { path: 'beds', redirectTo: 'discharge' },
   { path: 'admin', component: AdminComponent, canActivate: [roleGuard('SystemAdmin')] },
-  { path: 'admin/users', component: UserManagementComponent, canActivate: [roleGuard('SystemAdmin')] },
-  { path: '', pathMatch: 'full', redirectTo: 'login' }, { path: '**', redirectTo: 'login' }
+  {
+    path: 'admin/users',
+    component: UserManagementComponent,
+    canActivate: [roleGuard('SystemAdmin')],
+  },
+  { path: '', pathMatch: 'full', redirectTo: 'login' },
+  { path: '**', redirectTo: 'login' },
 ];

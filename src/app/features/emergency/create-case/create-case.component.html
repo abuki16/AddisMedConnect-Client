@@ -1,9 +1,10 @@
 <div class="dispatch-container">
-  
   <div class="dispatch-header">
-    <div><h2>AddisMedConnect</h2>
-    <p>Emergency Dispatch & Resource Coordination Center</p>
-    </div><button type="button" class="btn-secondary-link" (click)="auth.logout()">Sign out</button>
+    <div>
+      <h2>AddisMedConnect</h2>
+      <p>Emergency Dispatch & Resource Coordination Center</p>
+    </div>
+    <button type="button" class="btn-secondary-link" (click)="auth.logout()">Sign out</button>
   </div>
 
   <!-- LIVE METRICS BAR: Pending Triage Count -->
@@ -19,23 +20,27 @@
   </div>
 
   <!-- ERROR BANNER -->
-  <div class="alert-error" *ngIf="errorMessage">
-    ⚠️ {{ errorMessage }}
-  </div>
+  <div class="alert-error" *ngIf="errorMessage">⚠️ {{ errorMessage }}</div>
 
   <!-- SUCCESS BANNER / POST-CREATION VIEW -->
   <div class="success-card" *ngIf="createdIncidentNumber">
     <div class="success-content">
       <h3>🎉 Emergency Case Successfully Registered!</h3>
       <p class="success-message-text">
-        The case information has been saved successfully in the system. 
+        The case information has been saved successfully in the system.
       </p>
-      <p><strong>Generated Incident Number:</strong> <span class="incident-badge">{{ createdIncidentNumber }}</span></p>
-      
+      <p>
+        <strong>Generated Incident Number:</strong>
+        <span class="incident-badge">{{ createdIncidentNumber }}</span>
+      </p>
+
       <!-- TWO ACTION BUTTONS SECTION -->
       <div class="success-actions-group">
         <!-- Button 1: Navigate to Assignment Page to assign bed & ambulance -->
-        <button class="btn-success-custom" [routerLink]="['/assign-resources', createdIncidentNumber]">
+        <button
+          class="btn-success-custom"
+          [routerLink]="['/assign-resources', createdIncidentNumber]"
+        >
           🚀 Go to Assignment Page (Assign Bed & Ambulance)
         </button>
 
@@ -49,24 +54,29 @@
 
   <!-- STEP 1: INTAKE & CASE REGISTRATION FORM (Hidden once created) -->
   <form [formGroup]="intakeForm" (ngSubmit)="onCreateCase()" *ngIf="!createdIncidentNumber">
-
     <!-- 1. Caller Information -->
     <fieldset>
       <legend>1. Caller Information</legend>
-      
+
       <div class="form-row">
         <div class="form-group">
           <label>Caller Full Name * <span class="text-muted">(First & Father)</span></label>
-          <input type="text" formControlName="callerName" placeholder="e.g., Abebe Kebede">
-          <div *ngIf="intakeForm.get('callerName')?.touched && intakeForm.get('callerName')?.invalid" class="error-text">
+          <input type="text" formControlName="callerName" placeholder="e.g., Abebe Kebede" />
+          <div
+            *ngIf="intakeForm.get('callerName')?.touched && intakeForm.get('callerName')?.invalid"
+            class="error-text"
+          >
             Valid First and Father's name required (minimum 4 characters).
           </div>
         </div>
 
         <div class="form-group">
           <label>Caller Phone Number *</label>
-          <input type="text" formControlName="callerPhone" placeholder="09xxxxxxxx or 07xxxxxxxx">
-          <div *ngIf="intakeForm.get('callerPhone')?.touched && intakeForm.get('callerPhone')?.invalid" class="error-text">
+          <input type="text" formControlName="callerPhone" placeholder="09xxxxxxxx or 07xxxxxxxx" />
+          <div
+            *ngIf="intakeForm.get('callerPhone')?.touched && intakeForm.get('callerPhone')?.invalid"
+            class="error-text"
+          >
             Valid Ethiopian phone number format required (e.g., 0911223344).
           </div>
         </div>
@@ -76,34 +86,62 @@
     <!-- 2. Patient & Incident Details -->
     <fieldset>
       <legend>2. Patient & Incident Details</legend>
-      
+
       <div class="checkbox-group">
         <label>
-          <input type="checkbox" formControlName="isUnknownPatient" (change)="toggleUnknownPatient($event)">
+          <input
+            type="checkbox"
+            formControlName="isUnknownPatient"
+            (change)="toggleUnknownPatient($event)"
+          />
           Unknown Patient / John/Jane Doe
         </label>
       </div>
 
       <div class="form-group">
         <label>Patient Full Name *</label>
-        <input type="text" formControlName="patientName" placeholder="e.g., Chaltu Tadesse">
-        <div *ngIf="intakeForm.get('patientName')?.touched && intakeForm.get('patientName')?.invalid" class="error-text">
+        <input type="text" formControlName="patientName" placeholder="e.g., Chaltu Tadesse" />
+        <div
+          *ngIf="intakeForm.get('patientName')?.touched && intakeForm.get('patientName')?.invalid"
+          class="error-text"
+        >
           Patient full name is required.
         </div>
       </div>
 
       <div class="form-group">
         <label>Incident Reason / Chief Complaint *</label>
-        <textarea formControlName="incidentReason" rows="3" placeholder="Describe emergency details (e.g., severe accident, cardiac arrest)..."></textarea>
-        <div *ngIf="intakeForm.get('incidentReason')?.touched && intakeForm.get('incidentReason')?.invalid" class="error-text">
+        <textarea
+          formControlName="incidentReason"
+          rows="3"
+          placeholder="Describe emergency details (e.g., severe accident, cardiac arrest)..."
+        ></textarea>
+        <div
+          *ngIf="
+            intakeForm.get('incidentReason')?.touched && intakeForm.get('incidentReason')?.invalid
+          "
+          class="error-text"
+        >
           Please provide a valid incident description (minimum 8 characters).
         </div>
       </div>
 
       <section class="recommendations" *ngIf="recommendations.length">
-        <div><h3>Nearby hospital recommendations</h3><p>Ranked by caller location and free {{ intakeForm.value.wardType }} beds.</p></div>
-        <button type="button" *ngFor="let hospital of recommendations.slice(0, 3)" [class.unavailable]="!hospital.hasRequestedWardCapacity" (click)="selectRecommendedHospital(hospital)">
-          <strong>{{ hospital.hospitalName }}</strong><span>{{ hospital.distanceKm | number:'1.1-1' }} km · {{ hospital.availableBeds }} beds free</span><small>{{ hospital.recommendation }}</small>
+        <div>
+          <h3>Nearby hospital recommendations</h3>
+          <p>Ranked by caller location and free {{ intakeForm.value.wardType }} beds.</p>
+        </div>
+        <button
+          type="button"
+          *ngFor="let hospital of recommendations.slice(0, 3)"
+          [class.unavailable]="!hospital.hasRequestedWardCapacity"
+          (click)="selectRecommendedHospital(hospital)"
+        >
+          <strong>{{ hospital.hospitalName }}</strong
+          ><span
+            >{{ hospital.distanceKm | number: '1.1-1' }} km · {{ hospital.availableBeds }} beds
+            free</span
+          ><small>{{ hospital.recommendation }}</small>
         </button>
       </section>
     </fieldset>
@@ -111,19 +149,28 @@
     <!-- 3. Location & Hospital Routing -->
     <fieldset>
       <legend>3. Location & Hospital Routing</legend>
-      
+
       <div class="form-row">
         <div class="form-group autocomplete-container">
           <label>Pickup Location / Address *</label>
-          <input type="text" formControlName="pickupAddress" placeholder="Type location in Addis Ababa...">
-          
+          <input
+            type="text"
+            formControlName="pickupAddress"
+            placeholder="Type location in Addis Ababa..."
+          />
+
           <!-- Autocomplete suggestions dropdown -->
           <ul class="suggestions-list" *ngIf="filteredLocations.length > 0">
             <li *ngFor="let loc of filteredLocations" (click)="selectLocation(loc)">
               📍 {{ loc }}
             </li>
           </ul>
-          <div *ngIf="intakeForm.get('pickupAddress')?.touched && intakeForm.get('pickupAddress')?.invalid" class="error-text">
+          <div
+            *ngIf="
+              intakeForm.get('pickupAddress')?.touched && intakeForm.get('pickupAddress')?.invalid
+            "
+            class="error-text"
+          >
             Pickup address is required.
           </div>
         </div>
@@ -144,7 +191,13 @@
             {{ h.name || h.Name }} (Available Beds: {{ h.availableBeds ?? h.AvailableBeds }})
           </option>
         </select>
-        <div *ngIf="intakeForm.get('targetHospitalId')?.touched && intakeForm.get('targetHospitalId')?.invalid" class="error-text">
+        <div
+          *ngIf="
+            intakeForm.get('targetHospitalId')?.touched &&
+            intakeForm.get('targetHospitalId')?.invalid
+          "
+          class="error-text"
+        >
           Destination hospital selection is required.
         </div>
 
@@ -156,8 +209,20 @@
         <div class="alert-warning-custom" *ngIf="capacityWarning && !capacityWarning.isAvailable">
           <div class="warning-content">
             <span>⚠️ <strong>Capacity Full:</strong> {{ capacityWarning.message }}</span>
-            <button *ngIf="capacityWarning.alternativeHospital" type="button" class="btn-alt" (click)="useAlternativeHospital(capacityWarning.alternativeHospital.id || capacityWarning.alternativeHospital.Id!)">
-              Route to {{ capacityWarning.alternativeHospital.name || capacityWarning.alternativeHospital.Name }}
+            <button
+              *ngIf="capacityWarning.alternativeHospital"
+              type="button"
+              class="btn-alt"
+              (click)="
+                useAlternativeHospital(
+                  capacityWarning.alternativeHospital.id || capacityWarning.alternativeHospital.Id!
+                )
+              "
+            >
+              Route to
+              {{
+                capacityWarning.alternativeHospital.name || capacityWarning.alternativeHospital.Name
+              }}
             </button>
           </div>
         </div>
@@ -165,10 +230,13 @@
     </fieldset>
 
     <div class="form-actions">
-      <button type="submit" class="btn-primary" [disabled]="isSubmitting || (capacityWarning && !capacityWarning.isAvailable)">
+      <button
+        type="submit"
+        class="btn-primary"
+        [disabled]="isSubmitting || (capacityWarning && !capacityWarning.isAvailable)"
+      >
         {{ isSubmitting ? 'Registering Emergency Case...' : 'Register Case Information 📝' }}
       </button>
     </div>
   </form>
-
 </div>

@@ -1,1 +1,71 @@
-<main class="driver"><header><div><p class="eyebrow">{{ isAdmin ? 'SYSTEM ADMIN' : 'DRIVER CONSOLE' }}</p><h1>{{ isAdmin ? 'Driver & fleet view' : (user?.plateNumber || 'Assigned ambulance') }}</h1></div><button (click)="auth.logout()">Sign out</button></header><section *ngIf="isAdmin; else driverWorkspace" class="fleet"><h2>Registered ambulances</h2><div class="fleet-list"><article *ngFor="let ambulance of ambulances"><strong>{{ ambulance.plateNumber }}</strong><span>{{ ambulance.driverName || 'No driver assigned' }}</span><em [class.ready]="ambulance.isAvailable">{{ ambulance.isAvailable ? 'Available' : 'On assignment' }}</em></article><p *ngIf="!ambulances.length">No ambulances are registered.</p></div></section><ng-template #driverWorkspace><section *ngIf="data; else loading"><article><h2>{{ data.assignment ? 'Current dispatch' : 'No active assignment' }}</h2><ng-container *ngIf="data.assignment; else empty"><p class="id">{{data.assignment.incidentNumber}}</p><h3>{{data.assignment.patientName}}</h3><p>{{data.assignment.incidentReason}}</p><dl><dt>Pickup</dt><dd>{{data.assignment.pickupAddress}}</dd><dt>Destination</dt><dd>{{data.assignment.targetHospital.name}} — {{data.assignment.targetHospital.address}}</dd></dl></ng-container><button class="primary" (click)="shareLocation()">Share my live location</button><p *ngIf="message">{{message}}</p></article></section><ng-template #empty><p>Stay ready. You will see dispatch details here when your plate is assigned.</p></ng-template><ng-template #loading><p>Loading driver workspace…</p></ng-template></ng-template></main>
+<main class="driver">
+  <header>
+    <div>
+      <p class="eyebrow">{{ isAdmin ? 'SYSTEM ADMIN' : 'DRIVER CONSOLE' }}</p>
+      <h1>
+        {{ isAdmin ? 'Driver & fleet view' : data?.ambulance?.plateNumber || 'Assigned ambulance' }}
+      </h1>
+    </div>
+    <button (click)="auth.logout()">Sign out</button>
+  </header>
+  <section *ngIf="isAdmin; else driverWorkspace" class="fleet">
+    <h2>Registered ambulances</h2>
+    <div class="fleet-list">
+      <article *ngFor="let ambulance of ambulances">
+        <strong>{{ ambulance.plateNumber }}</strong
+        ><span>{{ ambulance.driverName || 'No driver assigned' }}</span
+        ><em [class.ready]="ambulance.isAvailable">{{
+          ambulance.isAvailable ? 'Available' : 'On assignment'
+        }}</em>
+      </article>
+      <p *ngIf="!ambulances.length">No ambulances are registered.</p>
+    </div>
+  </section>
+  <ng-template #driverWorkspace
+    ><section *ngIf="data; else loading" class="driver-stack">
+      <article>
+        <h2>{{ data.assignment ? 'Current dispatch' : 'No active assignment' }}</h2>
+        <ng-container *ngIf="data.assignment; else empty"
+          ><p class="id">{{ data.assignment.incidentNumber }}</p>
+          <h3>{{ data.assignment.patientName }}</h3>
+          <p>{{ data.assignment.incidentReason }}</p>
+          <dl>
+            <dt>Pickup</dt>
+            <dd>{{ data.assignment.pickupAddress }}</dd>
+            <dt>Destination</dt>
+            <dd>
+              {{ data.assignment.targetHospital.name }} —
+              {{ data.assignment.targetHospital.address }}
+            </dd>
+          </dl></ng-container
+        >
+      </article>
+      <article class="location-card">
+        <h2>Live location</h2>
+        <p *ngIf="location; else noLocation">
+          {{ location.latitude | number: '1.5-5' }}, {{ location.longitude | number: '1.5-5'
+          }}<br /><small>Updated {{ locationUpdatedAt | date: 'mediumTime' }}</small>
+        </p>
+        <ng-template #noLocation
+          ><p>
+            Start sharing to display your current position here and send it to dispatch.
+          </p></ng-template
+        ><iframe *ngIf="mapUrl" [src]="mapUrl" title="Current ambulance location"></iframe>
+        <div class="actions">
+          <button class="primary" (click)="shareLocation()">Share once</button
+          ><button class="primary" *ngIf="!liveTracking" (click)="startLiveTracking()">
+            Start live sharing</button
+          ><button class="stop" *ngIf="liveTracking" (click)="stopLiveTracking()">
+            Stop live sharing
+          </button>
+        </div>
+        <p class="message" *ngIf="message">{{ message }}</p>
+      </article>
+    </section>
+    <ng-template #empty
+      ><p>
+        Stay ready. You will see dispatch details here when your plate is assigned.
+      </p></ng-template
+    ><ng-template #loading><p>Loading driver workspace…</p></ng-template></ng-template
+  >
+</main>

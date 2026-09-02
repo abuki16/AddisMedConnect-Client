@@ -12,7 +12,7 @@ import { BedSignalRService } from '../../services/bed-signalr.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './assignment-dashboard.html',
-  styleUrls: ['./assignment-dashboard.scss']
+  styleUrls: ['./assignment-dashboard.scss'],
 })
 export class AssignmentDashboardComponent implements OnInit, OnDestroy {
   readonly resourceStore = inject(ResourceStore);
@@ -26,9 +26,13 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
 
   get availableBeds(): Bed[] {
     const rawBeds = (this.resourceStore.beds() as any[]) || [];
-    return rawBeds.filter(bed => {
+    return rawBeds.filter((bed) => {
       const statusValue = bed.status !== undefined ? bed.status : bed.Status;
-      return statusValue === 0 || statusValue === '0' || String(statusValue).toLowerCase() === 'available';
+      return (
+        statusValue === 0 ||
+        statusValue === '0' ||
+        String(statusValue).toLowerCase() === 'available'
+      );
     });
   }
 
@@ -44,7 +48,7 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder,
-    private http: HttpClient
+    private http: HttpClient,
   ) {}
 
   ngOnInit(): void {
@@ -80,34 +84,36 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
   initForm(): void {
     this.assignmentForm = this.fb.group({
       bedId: ['', Validators.required],
-      ambulanceId: ['', Validators.required]
+      ambulanceId: ['', Validators.required],
     });
   }
 
   fetchCaseDetailsAndBeds(): void {
     this.isLoadingCase = true;
-    this.http.get<any>(`http://localhost:5057/api/emergency-cases/${this.incidentNumber}`).subscribe({
-      next: (caseData) => {
-        this.isLoadingCase = false;
-        const hospitalId = caseData?.targetHospitalId || caseData?.TargetHospitalId;
+    this.http
+      .get<any>(`http://localhost:5057/api/emergency-cases/${this.incidentNumber}`)
+      .subscribe({
+        next: (caseData) => {
+          this.isLoadingCase = false;
+          const hospitalId = caseData?.targetHospitalId || caseData?.TargetHospitalId;
 
-        if (hospitalId) {
-          this.targetHospitalId = hospitalId;
-          console.log('🏥 Target Hospital ID found:', this.targetHospitalId);
-          // Calls the dedicated available beds method per hospital
-          this.resourceStore.loadAvailableBedsForHospital(hospitalId);
-        } else {
-          this.errorMessage = 'Could not determine the target hospital for this incident.';
-        }
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.isLoadingCase = false;
-        this.errorMessage = 'Failed to load incident details from server.';
-        console.error(err);
-        this.cdr.detectChanges();
-      }
-    });
+          if (hospitalId) {
+            this.targetHospitalId = hospitalId;
+            console.log('🏥 Target Hospital ID found:', this.targetHospitalId);
+            // Calls the dedicated available beds method per hospital
+            this.resourceStore.loadAvailableBedsForHospital(hospitalId);
+          } else {
+            this.errorMessage = 'Could not determine the target hospital for this incident.';
+          }
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.isLoadingCase = false;
+          this.errorMessage = 'Failed to load incident details from server.';
+          console.error(err);
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   onConfirmAssignment(): void {
@@ -119,25 +125,30 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
     this.isAssigning = true;
     this.errorMessage = '';
 
-    this.http.post(`http://localhost:5057/api/emergency-cases/${this.incidentNumber}/assign`, this.assignmentForm.value).subscribe({
-      next: () => {
-        this.isAssigning = false;
-        this.successMessage = `Resources successfully dispatched to Incident #${this.incidentNumber}!`;
+    this.http
+      .post(
+        `http://localhost:5057/api/emergency-cases/${this.incidentNumber}/assign`,
+        this.assignmentForm.value,
+      )
+      .subscribe({
+        next: () => {
+          this.isAssigning = false;
+          this.successMessage = `Resources successfully dispatched to Incident #${this.incidentNumber}!`;
 
-        if (this.targetHospitalId) {
-          this.resourceStore.loadAvailableBedsForHospital(this.targetHospitalId);
-        }
-        this.resourceStore.loadHospitals();
-        this.resourceStore.loadAmbulances();
+          if (this.targetHospitalId) {
+            this.resourceStore.loadAvailableBedsForHospital(this.targetHospitalId);
+          }
+          this.resourceStore.loadHospitals();
+          this.resourceStore.loadAmbulances();
 
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.isAssigning = false;
-        this.errorMessage = err.error?.message || 'Failed to assign resources.';
-        this.cdr.detectChanges();
-      }
-    });
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.isAssigning = false;
+          this.errorMessage = err.error?.message || 'Failed to assign resources.';
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   goToNewIntake(): void {

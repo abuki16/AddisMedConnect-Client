@@ -1,0 +1,51 @@
+<main class="workspace">
+  <header>
+    <div>
+      <p class="eyebrow">DISCHARGE CLERK</p>
+      <h1>Patient discharge &amp; bed release</h1>
+      <p>{{ auth.user()?.hospitalName }} · admitted patients with occupied beds</p>
+    </div>
+    <button type="button" (click)="auth.logout()">Sign out</button>
+  </header>
+  <section class="panel">
+    <div class="toolbar">
+      <div>
+        <h2>Admitted cases</h2>
+        <p>Discharging a patient marks the case resolved and releases its occupied bed.</p>
+      </div>
+      <button type="button" class="secondary" (click)="load()" [disabled]="loading">Refresh</button>
+    </div>
+    <p class="notice" *ngIf="message">{{ message }}</p>
+    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    <p class="empty" *ngIf="loading">Loading admitted cases…</p>
+    <div class="case-list" *ngIf="!loading && cases.length">
+      <article class="case" *ngFor="let caseItem of cases">
+        <div>
+          <p class="incident">{{ caseItem.incidentNumber }}</p>
+          <h3>{{ caseItem.patientName }}</h3>
+          <p>{{ caseItem.incidentReason }}</p>
+        </div>
+        <dl>
+          <dt>Occupied bed</dt>
+          <dd>{{ caseItem.bedNumber || 'Assigned bed' }}</dd>
+          <dt>Created</dt>
+          <dd>{{ caseItem.createdAt | date: 'medium' }}</dd>
+        </dl>
+        <button
+          type="button"
+          (click)="discharge(caseItem)"
+          [disabled]="dischargingIncident === caseItem.incidentNumber"
+        >
+          {{
+            dischargingIncident === caseItem.incidentNumber
+              ? 'Releasing…'
+              : 'Discharge & release bed'
+          }}
+        </button>
+      </article>
+    </div>
+    <p class="empty" *ngIf="!loading && !cases.length">
+      There are no admitted patients awaiting discharge.
+    </p>
+  </section>
+</main>

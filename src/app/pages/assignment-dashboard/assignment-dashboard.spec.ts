@@ -11,13 +11,8 @@ describe('AssignmentDashboardComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AssignmentDashboardComponent],
-      providers: [
-        provideRouter([]),
-        provideHttpClient(),
-        provideHttpClientTesting()
-      ]
-    })
-    .compileComponents();
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(AssignmentDashboardComponent);
     component = fixture.componentInstance;

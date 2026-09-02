@@ -8,17 +8,33 @@ import { AuthService } from '../../core/auth.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './user-management.component.html',
-  styleUrl: './user-management.component.scss'
+  styleUrl: './user-management.component.scss',
 })
 export class UserManagementComponent implements OnInit {
   users: any[] = [];
   hospitals: any[] = [];
   editingId = '';
   message = '';
-  readonly roles = ['Dispatcher', 'AmbulanceDriver', 'TriageNurse', 'DischargeClerk', 'SystemAdmin'];
+  saving = false;
+  readonly roles = [
+    'Dispatcher',
+    'AmbulanceDriver',
+    'TriageNurse',
+    'DischargeClerk',
+    'SystemAdmin',
+  ];
+  readonly passwordValidators = [
+    Validators.required,
+    Validators.minLength(12),
+    Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{12,}$/),
+  ];
   form;
 
-  constructor(public auth: AuthService, private http: HttpClient, private fb: FormBuilder) {
+  constructor(
+    public auth: AuthService,
+    private http: HttpClient,
+    private fb: FormBuilder,
+  ) {
     this.form = fb.group({
       firstName: ['', Validators.required],
       lastName: ['', Validators.required],
@@ -26,25 +42,27 @@ export class UserManagementComponent implements OnInit {
       phoneNumber: [''],
       role: ['', Validators.required],
       hospitalId: [''],
-      password: ['', [Validators.required, Validators.minLength(8)]],
-      confirmPassword: ['', Validators.required]
+      password: ['', this.passwordValidators],
+      confirmPassword: ['', Validators.required],
     });
   }
 
   ngOnInit() {
     this.load();
-    this.http.get<any[]>('http://localhost:5057/api/hospitals').subscribe(x => this.hospitals = x);
+    this.http
+      .get<any[]>('http://localhost:5057/api/hospitals')
+      .subscribe((x) => (this.hospitals = x));
   }
 
   load() {
-    this.http.get<any[]>('http://localhost:5057/api/auth/users').subscribe(x => this.users = x);
+    this.http.get<any[]>('http://localhost:5057/api/auth/users').subscribe((x) => (this.users = x));
   }
 
   edit(user: any) {
     const names = (user.fullName || '').trim().split(/\s+/);
     const firstName = names.shift() || '';
     const lastName = names.join(' ');
-    
+
     this.editingId = user.id;
     this.form.patchValue({
       firstName,
@@ -54,7 +72,7 @@ export class UserManagementComponent implements OnInit {
       role: user.role,
       hospitalId: user.hospitalId || '',
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
     });
 
     this.form.controls.password.clearValidators();
@@ -63,9 +81,9 @@ export class UserManagementComponent implements OnInit {
     this.form.controls.confirmPassword.updateValueAndValidity();
   }
 
-  reset() {
+  reset(clearMessage = true) {
     this.editingId = '';
-    this.message = '';
+    if (clearMessage) this.message = '';
     this.form.reset({
       role: '',
       hospitalId: '',
@@ -74,10 +92,10 @@ export class UserManagementComponent implements OnInit {
       email: '',
       phoneNumber: '',
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
     });
 
-    this.form.controls.password.setValidators([Validators.required, Validators.minLength(8)]);
+    this.form.controls.password.setValidators(this.passwordValidators);
     this.form.controls.confirmPassword.setValidators([Validators.required]);
     this.form.controls.password.updateValueAndValidity();
     this.form.controls.confirmPassword.updateValueAndValidity();
@@ -94,6 +112,8 @@ export class UserManagementComponent implements OnInit {
 
     const hospitalId = value.hospitalId || null;
     const isEditing = !!this.editingId;
+    this.saving = true;
+    this.message = '';
 
     const request = isEditing
       ? this.http.put(`http://localhost:5057/api/auth/users/${this.editingId}`, {
@@ -103,7 +123,7 @@ export class UserManagementComponent implements OnInit {
           phoneNumber: value.phoneNumber,
           role: value.role,
           hospitalId,
-          newPassword: value.password || null
+          newPassword: value.password || null,
         })
       : this.http.post('http://localhost:5057/api/auth/registerusers', {
           firstName: value.firstName?.trim(),
@@ -113,23 +133,33 @@ export class UserManagementComponent implements OnInit {
           confirmPassword: value.confirmPassword,
           phoneNumber: value.phoneNumber,
           role: value.role,
-          hospitalId
+          hospitalId,
         });
 
     request.subscribe({
       next: () => {
         this.message = isEditing ? 'User access saved.' : 'User successfully registered.';
-        this.reset();
+        this.saving = false;
+        this.reset(false);
         this.load();
       },
-      error: e => {
+      error: (e) => {
+        this.saving = false;
         const errorMsg = e.error?.message || e.error?.title || '';
-        if (e.status === 401 || e.status === 400 && (errorMsg.toLowerCase().includes('credential') || errorMsg.toLowerCase().includes('invalid'))) {
+        if (
+          e.status === 401 ||
+          (e.status === 400 &&
+            (errorMsg.toLowerCase().includes('credential') ||
+              errorMsg.toLowerCase().includes('invalid')))
+        ) {
           this.message = 'Invalid username or password';
         } else {
-          this.message = errorMsg || e.error?.errors?.[Object.keys(e.error?.errors || {})[0]]?.[0] || 'Could not save user.';
+          this.message =
+            errorMsg ||
+            e.error?.errors?.[Object.keys(e.error?.errors || {})[0]]?.[0] ||
+            'Could not save user.';
         }
-      }
+      },
     });
   }
 
@@ -137,7 +167,7 @@ export class UserManagementComponent implements OnInit {
     if (!confirm(`Delete ${user.fullName}?`)) return;
     this.http.delete(`http://localhost:5057/api/auth/users/${user.id}`).subscribe({
       next: () => this.load(),
-      error: e => this.message = e.error?.message || 'Could not delete user.'
+      error: (e) => (this.message = e.error?.message || 'Could not delete user.'),
     });
   }
 }

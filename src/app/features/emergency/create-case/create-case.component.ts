@@ -13,14 +13,23 @@ interface CapacityResult {
   distanceKm?: number;
   availableBedsCount?: number;
 }
-interface HospitalRecommendation { hospitalId: string; hospitalName: string; subCity: string; address: string; distanceKm: number; availableBeds: number; hasRequestedWardCapacity: boolean; recommendation: string; }
+interface HospitalRecommendation {
+  hospitalId: string;
+  hospitalName: string;
+  subCity: string;
+  address: string;
+  distanceKm: number;
+  availableBeds: number;
+  hasRequestedWardCapacity: boolean;
+  recommendation: string;
+}
 
 @Component({
   selector: 'app-create-case',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './create-case.component.html',
-  styleUrls: ['./create-case.component.scss']
+  styleUrls: ['./create-case.component.scss'],
 })
 export class CreateCaseComponent implements OnInit {
   readonly resourceStore = inject(ResourceStore);
@@ -54,12 +63,38 @@ export class CreateCaseComponent implements OnInit {
   wardTypes: string[] = ['Emergency', 'ICU', 'Trauma'];
 
   commonLocations: string[] = [
-    'Addis Ketema', 'Akaki Kaliti', 'Arada', 'Bole Subcity', 'Gullele', 
-    'Kirkos', 'Kolfe Keranio', 'Lideta', 'Nefas Silk-Lafto', 'Yeka', 'Lemi Kura',
-    'Bole Road (Dembel / Medhane Alem)', 'Bole Bulbula', 'Bole Michael', 'Bole Atlas',
-    'Mexico Square', 'Piassa (Piazza)', 'Churchill Avenue', 'Kazanchis', 
-    'Gerji Mebrat Hail', 'Megenagna Square', 'Sarbet', 'Ayat Condominium', 'Summit Area',
-    'Jemo 1', 'Jemo 2', 'Jemo 3', 'Gotera', 'Kera', 'Saris', 'Mekanisa', 'Arat Kilo'
+    'Addis Ketema',
+    'Akaki Kaliti',
+    'Arada',
+    'Bole Subcity',
+    'Gullele',
+    'Kirkos',
+    'Kolfe Keranio',
+    'Lideta',
+    'Nefas Silk-Lafto',
+    'Yeka',
+    'Lemi Kura',
+    'Bole Road (Dembel / Medhane Alem)',
+    'Bole Bulbula',
+    'Bole Michael',
+    'Bole Atlas',
+    'Mexico Square',
+    'Piassa (Piazza)',
+    'Churchill Avenue',
+    'Kazanchis',
+    'Gerji Mebrat Hail',
+    'Megenagna Square',
+    'Sarbet',
+    'Ayat Condominium',
+    'Summit Area',
+    'Jemo 1',
+    'Jemo 2',
+    'Jemo 3',
+    'Gotera',
+    'Kera',
+    'Saris',
+    'Mekanisa',
+    'Arat Kilo',
   ];
   filteredLocations: string[] = [];
 
@@ -67,7 +102,7 @@ export class CreateCaseComponent implements OnInit {
     private fb: FormBuilder,
     private http: HttpClient,
     private router: Router,
-    public auth: AuthService
+    public auth: AuthService,
   ) {}
 
   ngOnInit(): void {
@@ -75,11 +110,11 @@ export class CreateCaseComponent implements OnInit {
     this.resourceStore.loadHospitals();
     this.loadPendingTriageCount();
 
-    this.intakeForm.get('pickupAddress')?.valueChanges.subscribe(value => {
+    this.intakeForm.get('pickupAddress')?.valueChanges.subscribe((value) => {
       this.filterLocations(value);
     });
 
-    this.intakeForm.get('targetHospitalId')?.valueChanges.subscribe(hospitalId => {
+    this.intakeForm.get('targetHospitalId')?.valueChanges.subscribe((hospitalId) => {
       if (hospitalId) {
         this.verifyHospitalCapacity(hospitalId);
         // Also fetch available beds for this hospital if needed for dropdown selections
@@ -99,14 +134,16 @@ export class CreateCaseComponent implements OnInit {
   }
 
   loadPendingTriageCount(): void {
-    this.http.get<{ count: number }>('http://localhost:5057/api/emergency-cases/pending-triage-count').subscribe({
-      next: (res) => {
-        this.pendingTriageCount = res.count;
-      },
-      error: () => {
-        this.pendingTriageCount = 0;
-      }
-    });
+    this.http
+      .get<{ count: number }>('http://localhost:5057/api/emergency-cases/pending-triage-count')
+      .subscribe({
+        next: (res) => {
+          this.pendingTriageCount = res.count;
+        },
+        error: () => {
+          this.pendingTriageCount = 0;
+        },
+      });
   }
 
   initForms(): void {
@@ -114,21 +151,27 @@ export class CreateCaseComponent implements OnInit {
     const ethiopianPhonePattern = /^(?:\+251|0)[79]\d{8}$/;
 
     this.intakeForm = this.fb.group({
-      callerName: ['', [Validators.required, Validators.pattern(fullNamePattern), Validators.minLength(4)]],
+      callerName: [
+        '',
+        [Validators.required, Validators.pattern(fullNamePattern), Validators.minLength(4)],
+      ],
       callerPhone: ['', [Validators.required, Validators.pattern(ethiopianPhonePattern)]],
-      patientName: ['', [Validators.required, Validators.pattern(fullNamePattern), Validators.minLength(4)]],
+      patientName: [
+        '',
+        [Validators.required, Validators.pattern(fullNamePattern), Validators.minLength(4)],
+      ],
       isUnknownPatient: [false],
       incidentReason: ['', [Validators.required, Validators.minLength(8)]],
       targetHospitalId: ['', Validators.required],
       pickupAddress: ['', [Validators.required, Validators.minLength(3)]],
       pickupLatitude: [null],
       pickupLongitude: [null],
-      wardType: ['Emergency', Validators.required]
+      wardType: ['Emergency', Validators.required],
     });
 
     this.assignmentForm = this.fb.group({
       bedId: ['', Validators.required],
-      ambulanceId: ['', Validators.required]
+      ambulanceId: ['', Validators.required],
     });
   }
 
@@ -141,17 +184,19 @@ export class CreateCaseComponent implements OnInit {
       .set('lng', '38.7400');
 
     this.isCheckingCapacity = true;
-    this.http.get<CapacityResult>('http://localhost:5057/api/emergency-cases/check-capacity', { params }).subscribe({
-      next: (result) => {
-        this.isCheckingCapacity = false;
-        this.capacityWarning = result;
-      },
-      error: (err) => {
-        this.isCheckingCapacity = false;
-        this.capacityWarning = null;
-        console.error('Capacity check failed:', err);
-      }
-    });
+    this.http
+      .get<CapacityResult>('http://localhost:5057/api/emergency-cases/check-capacity', { params })
+      .subscribe({
+        next: (result) => {
+          this.isCheckingCapacity = false;
+          this.capacityWarning = result;
+        },
+        error: (err) => {
+          this.isCheckingCapacity = false;
+          this.capacityWarning = null;
+          console.error('Capacity check failed:', err);
+        },
+      });
   }
 
   useAlternativeHospital(altHospitalId: string): void {
@@ -170,8 +215,8 @@ export class CreateCaseComponent implements OnInit {
     } else {
       patientNameControl?.setValue('');
       patientNameControl?.setValidators([
-        Validators.required, 
-        Validators.pattern(/^[\p{L}]{2,}(\s+[\p{L}]{2,})+$/u)
+        Validators.required,
+        Validators.pattern(/^[\p{L}]{2,}(\s+[\p{L}]{2,})+$/u),
       ]);
       patientNameControl?.enable();
     }
@@ -184,8 +229,8 @@ export class CreateCaseComponent implements OnInit {
       return;
     }
     const lowerQuery = query.toLowerCase();
-    this.filteredLocations = this.commonLocations.filter(loc => 
-      loc.toLowerCase().includes(lowerQuery)
+    this.filteredLocations = this.commonLocations.filter((loc) =>
+      loc.toLowerCase().includes(lowerQuery),
     );
   }
 
@@ -206,20 +251,45 @@ export class CreateCaseComponent implements OnInit {
   private recommendNearbyHospitals(): void {
     const { pickupLatitude, pickupLongitude, wardType } = this.intakeForm.getRawValue();
     if (pickupLatitude == null || pickupLongitude == null) return;
-    const params = new HttpParams().set('lat', String(pickupLatitude)).set('lng', String(pickupLongitude)).set('wardType', wardType || 'Emergency');
-    this.http.get<HospitalRecommendation[]>('http://localhost:5057/api/emergency-cases/hospital-recommendations', { params }).subscribe({
-      next: rows => { this.recommendations = rows; const best = rows.find(row => row.hasRequestedWardCapacity); if (best && !this.intakeForm.value.targetHospitalId) this.selectRecommendedHospital(best); },
-      error: () => this.recommendations = []
-    });
+    const params = new HttpParams()
+      .set('lat', String(pickupLatitude))
+      .set('lng', String(pickupLongitude))
+      .set('wardType', wardType || 'Emergency');
+    this.http
+      .get<HospitalRecommendation[]>(
+        'http://localhost:5057/api/emergency-cases/hospital-recommendations',
+        { params },
+      )
+      .subscribe({
+        next: (rows) => {
+          this.recommendations = rows;
+          const best = rows.find((row) => row.hasRequestedWardCapacity);
+          if (best && !this.intakeForm.value.targetHospitalId) this.selectRecommendedHospital(best);
+        },
+        error: () => (this.recommendations = []),
+      });
   }
 
   private readonly locationCoordinates: Record<string, { lat: number; lng: number }> = {
-    'Addis Ketema': { lat: 9.038, lng: 38.747 }, 'Akaki Kaliti': { lat: 8.896, lng: 38.764 }, 'Arada': { lat: 9.035, lng: 38.759 },
-    'Bole Subcity': { lat: 8.997, lng: 38.785 }, 'Gullele': { lat: 9.069, lng: 38.743 }, 'Kirkos': { lat: 9.011, lng: 38.766 },
-    'Kolfe Keranio': { lat: 9.003, lng: 38.698 }, 'Lideta': { lat: 9.011, lng: 38.744 }, 'Nefas Silk-Lafto': { lat: 8.979, lng: 38.737 },
-    'Yeka': { lat: 9.055, lng: 38.803 }, 'Lemi Kura': { lat: 9.056, lng: 38.847 }, 'Mexico Square': { lat: 9.015, lng: 38.746 },
-    'Piassa (Piazza)': { lat: 9.034, lng: 38.752 }, 'Kazanchis': { lat: 9.014, lng: 38.769 }, 'Megenagna Square': { lat: 9.034, lng: 38.786 },
-    'Sarbet': { lat: 9.003, lng: 38.738 }, 'Gotera': { lat: 8.995, lng: 38.765 }, 'Saris': { lat: 8.978, lng: 38.779 }, 'Arat Kilo': { lat: 9.035, lng: 38.762 }
+    'Addis Ketema': { lat: 9.038, lng: 38.747 },
+    'Akaki Kaliti': { lat: 8.896, lng: 38.764 },
+    Arada: { lat: 9.035, lng: 38.759 },
+    'Bole Subcity': { lat: 8.997, lng: 38.785 },
+    Gullele: { lat: 9.069, lng: 38.743 },
+    Kirkos: { lat: 9.011, lng: 38.766 },
+    'Kolfe Keranio': { lat: 9.003, lng: 38.698 },
+    Lideta: { lat: 9.011, lng: 38.744 },
+    'Nefas Silk-Lafto': { lat: 8.979, lng: 38.737 },
+    Yeka: { lat: 9.055, lng: 38.803 },
+    'Lemi Kura': { lat: 9.056, lng: 38.847 },
+    'Mexico Square': { lat: 9.015, lng: 38.746 },
+    'Piassa (Piazza)': { lat: 9.034, lng: 38.752 },
+    Kazanchis: { lat: 9.014, lng: 38.769 },
+    'Megenagna Square': { lat: 9.034, lng: 38.786 },
+    Sarbet: { lat: 9.003, lng: 38.738 },
+    Gotera: { lat: 8.995, lng: 38.765 },
+    Saris: { lat: 8.978, lng: 38.779 },
+    'Arat Kilo': { lat: 9.035, lng: 38.762 },
   };
 
   onCreateCase(): void {
@@ -250,8 +320,9 @@ export class CreateCaseComponent implements OnInit {
       },
       error: (err) => {
         this.isSubmitting = false;
-        this.errorMessage = err.error?.message || err.error?.title || 'Failed to register emergency case.';
-      }
+        this.errorMessage =
+          err.error?.message || err.error?.title || 'Failed to register emergency case.';
+      },
     });
   }
 

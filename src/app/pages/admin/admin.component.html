@@ -1,1 +1,48 @@
-<main class="admin"><aside><p class="eyebrow">SYSTEM ADMIN</p><h2>AddisMedConnect</h2><nav aria-label="Administration pages"><a routerLink="/admin/users">User management</a><a routerLink="/dispatch">Dispatcher console</a><a routerLink="/triage">Triage portal</a><a routerLink="/discharge">Discharge clerk</a><a routerLink="/driver">Driver &amp; fleet view</a></nav><button (click)="auth.logout()">Sign out</button></aside><section><header><div><p class="eyebrow">NETWORK OVERVIEW</p><h1>Control center</h1></div><button (click)="load()">Refresh data</button></header><div class="metrics"><article><strong>{{ cases.length }}</strong><span>Registered cases</span></article><article><strong>{{ hospitals.length }}</strong><span>Hospitals</span></article><article><strong>{{ ambulances.length }}</strong><span>Fleet units</span></article></div><div class="panel"><h2>All incidents</h2><div class="case-list"><article class="row" *ngFor="let c of cases"><b>{{ c.incidentNumber }}</b><span>{{ c.patientName }}</span><span>{{ c.targetHospitalName || 'Hospital pending' }}</span><em>{{ c.status }}</em></article><p *ngIf="!cases.length">No incidents have been registered.</p></div></div></section></main>
+<main class="admin">
+  <aside>
+    <p class="eyebrow">SYSTEM ADMIN</p>
+    <h2>AddisMedConnect</h2>
+    <nav aria-label="Administration pages">
+      <a routerLink="/admin/users">User management</a
+      ><a routerLink="/dispatch">Dispatcher console</a><a routerLink="/triage">Triage portal</a
+      ><a routerLink="/discharge">Discharge clerk</a
+      ><a routerLink="/driver">Driver &amp; fleet view</a>
+    </nav>
+    <button (click)="auth.logout()">Sign out</button>
+  </aside>
+  <section>
+    <header>
+      <div>
+        <p class="eyebrow">NETWORK OVERVIEW</p>
+        <h1>Control center</h1>
+      </div>
+      <button (click)="load()">Refresh data</button>
+    </header>
+    <div class="metrics">
+      <article>
+        <strong>{{ cases.length }}</strong
+        ><span>Registered cases</span>
+      </article>
+      <article>
+        <strong>{{ hospitals.length }}</strong
+        ><span>Hospitals</span>
+      </article>
+      <article>
+        <strong>{{ ambulances.length }}</strong
+        ><span>Fleet units</span>
+      </article>
+    </div>
+    <div class="panel">
+      <h2>All incidents</h2>
+      <div class="case-list">
+        <article class="row" *ngFor="let c of cases">
+          <b>{{ c.incidentNumber }}</b
+          ><span>{{ c.patientName }}</span
+          ><span>{{ c.targetHospitalName || 'Hospital pending' }}</span
+          ><em>{{ c.status }}</em>
+        </article>
+        <p *ngIf="!cases.length">No incidents have been registered.</p>
+      </div>
+    </div>
+  </section>
+</main>

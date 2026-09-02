@@ -2,6 +2,88 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../core/auth.service';
+import { apiUrl } from '../../core/api.config';
 
-@Component({standalone:true,imports:[CommonModule],template:`<main class="workspace"><header><div><p class="eyebrow">DISCHARGE CLERK</p><h1>Patient discharge & bed release</h1><p>{{auth.user()?.hospitalName}} · occupied admissions only</p></div><button (click)="auth.logout()">Sign out</button></header><section class="panel"><p class="notice" *ngIf="message">{{message}}</p><div class="case-list" *ngIf="cases.length; else empty"><article class="case" *ngFor="let c of cases"><div><p class="incident">{{c.incidentNumber}}</p><h2>{{c.patientName}}</h2><p>{{c.incidentReason}}</p></div><dl><dt>Occupied bed</dt><dd>{{c.bedNumber || 'Assigned bed'}}</dd><dt>Admitted</dt><dd>{{c.createdAt | date:'medium'}}</dd></dl><button (click)="discharge(c)">Discharge / transfer & free bed</button></article></div><ng-template #empty><p class="empty">There are no occupied admissions to close at this time.</p></ng-template></section></main>`,styles:[`.workspace{min-height:100vh;padding:2rem 8%;background:#f3f7f7;color:#14333b}.workspace header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}.eyebrow{font-size:.78rem;letter-spacing:.13em;color:#087e70;font-weight:800}.workspace h1{margin:.3rem 0}.workspace header button,.case button{background:#087e70;border:0;color:#fff;padding:.7rem .9rem;border-radius:8px;font-weight:700;cursor:pointer}.panel{background:#fff;border-radius:16px;padding:1.25rem;box-shadow:0 8px 22px #1232}.case-list{display:grid;gap:.8rem;max-height:65vh;overflow-y:auto;padding-right:.3rem}.case{display:grid;grid-template-columns:1.5fr 1fr auto;align-items:center;gap:1rem;padding:1.1rem;border:1px solid #dbe5e4;border-left:5px solid #d44c4c;border-radius:10px}.case h2{margin:.15rem 0;font-size:1.1rem}.case p{margin:.25rem 0;color:#5e7175}.incident{font-family:monospace;color:#087e70!important;font-weight:800}.case dl{margin:0;display:grid;gap:.3rem}.case dt{color:#66777b;font-size:.8rem}.case dd{margin:0;font-weight:700}.notice{padding:.8rem;border-radius:8px;background:#e5f8f1;color:#075e54}.empty{color:#66777b;padding:2rem;text-align:center}@media(max-width:700px){.workspace{padding:1.25rem}.case{grid-template-columns:1fr;align-items:start}.workspace header{align-items:start}}`]})
-export class DischargeClerkComponent implements OnInit {cases:any[]=[];message='';constructor(public auth:AuthService,private http:HttpClient){}ngOnInit(){this.load();}load(){const hospital=this.auth.user()?.hospitalId;if(!hospital)return;this.http.get<any[]>(`http://localhost:5057/api/emergency-cases/hospital/${hospital}/active`).subscribe({next:rows=>this.cases=rows.filter(c=>c.status==='Admitted'&&c.assignedBedId),error:()=>this.message='Could not load active hospital admissions.'});}discharge(c:any){if(!confirm(`Close ${c.incidentNumber} and free bed ${c.bedNumber || ''}?`))return;this.http.post(`http://localhost:5057/api/emergency-cases/${c.incidentNumber}/discharge`,{}).subscribe({next:()=>{this.message=`${c.patientName} was closed and ${c.bedNumber || 'the occupied bed'} is now available.`;this.load();},error:e=>this.message=e.error?.message||'Could not close this admission.'});}}
+interface AdmittedCase {
+  incidentNumber: string;
+  patientName: string;
+  incidentReason: string;
+  bedNumber?: string;
+  createdAt: string;
+  status: string;
+  assignedBedId?: string;
+}
+
+@Component({
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './discharge-clerk.component.html',
+  styleUrl: './discharge-clerk.component.scss',
+})
+export class DischargeClerkComponent implements OnInit {
+  cases: AdmittedCase[] = [];
+  message = '';
+  errorMessage = '';
+  loading = true;
+  dischargingIncident = '';
+
+  constructor(
+    public auth: AuthService,
+    private http: HttpClient,
+  ) {}
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    const hospitalId = this.auth.user()?.hospitalId;
+    if (!hospitalId) {
+      this.loading = false;
+      this.errorMessage = 'Your account is not assigned to a hospital.';
+      return;
+    }
+
+    this.loading = true;
+    this.errorMessage = '';
+    this.http
+      .get<AdmittedCase[]>(`${apiUrl}/emergency-cases/hospital/${hospitalId}/active`)
+      .subscribe({
+        next: (rows) => {
+          this.cases = rows.filter(
+            (caseItem) => caseItem.status === 'Admitted' && !!caseItem.assignedBedId,
+          );
+          this.loading = false;
+        },
+        error: (error) => {
+          this.loading = false;
+          this.errorMessage = error.error?.message || 'Could not load admitted cases.';
+        },
+      });
+  }
+
+  discharge(caseItem: AdmittedCase): void {
+    if (
+      !confirm(
+        `Discharge or transfer ${caseItem.patientName} and release ${caseItem.bedNumber || 'the occupied bed'}?`,
+      )
+    )
+      return;
+    this.dischargingIncident = caseItem.incidentNumber;
+    this.message = '';
+    this.errorMessage = '';
+    this.http
+      .post<void>(`${apiUrl}/emergency-cases/${caseItem.incidentNumber}/discharge`, {})
+      .subscribe({
+        next: () => {
+          this.message = `${caseItem.patientName} has been discharged and ${caseItem.bedNumber || 'the bed'} is available.`;
+          this.dischargingIncident = '';
+          this.load();
+        },
+        error: (error) => {
+          this.dischargingIncident = '';
+          this.errorMessage = error.error?.message || 'Could not close this admission.';
+        },
+      });
+  }
+}

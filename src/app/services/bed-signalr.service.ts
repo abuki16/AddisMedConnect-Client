@@ -3,7 +3,7 @@ import * as signalR from '@microsoft/signalr';
 import { Subject } from 'rxjs';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class BedSignalRService {
   private hubConnection!: signalR.HubConnection;
@@ -14,7 +14,7 @@ export class BedSignalRService {
   public startConnection(): void {
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl('http://localhost:5057/hubs/beds', {
-        withCredentials: true
+        withCredentials: true,
       })
       .withAutomaticReconnect()
       .build();
@@ -22,11 +22,14 @@ export class BedSignalRService {
     this.hubConnection
       .start()
       .then(() => console.log('SignalR Connection started for Beds Hub'))
-      .catch(err => console.error('Error while starting SignalR connection: ', err));
+      .catch((err) => console.error('Error while starting SignalR connection: ', err));
 
-    this.hubConnection.on('ReceiveBedStatusUpdate', (hospitalId: string, bedId: string, status: string) => {
-      this.bedStatusUpdatedSource.next({ bedId, status });
-    });
+    this.hubConnection.on(
+      'ReceiveBedStatusUpdate',
+      (hospitalId: string, bedId: string, status: string) => {
+        this.bedStatusUpdatedSource.next({ bedId, status });
+      },
+    );
   }
 
   public stopConnection(): void {

@@ -1,10 +1,10 @@
 <div class="dispatch-container">
-  
   <div class="dispatch-header">
     <div class="header-top-row">
       <h2>AddisMedConnect</h2>
       <span class="live-status-badge" [class.connected]="isRealtimeConnected">
-        <span class="pulse-dot"></span> {{ isRealtimeConnected ? 'Live Sync Active' : 'Connecting...' }}
+        <span class="pulse-dot"></span>
+        {{ isRealtimeConnected ? 'Live Sync Active' : 'Connecting...' }}
       </span>
     </div>
     <p>Emergency Triage & Resource Coordination Station</p>
@@ -23,9 +23,7 @@
   </div>
 
   <!-- ERROR & SUCCESS BANNERS -->
-  <div class="alert-error" *ngIf="errorMessage">
-    ⚠️ {{ errorMessage }}
-  </div>
+  <div class="alert-error" *ngIf="errorMessage">⚠️ {{ errorMessage }}</div>
 
   <div class="success-card" *ngIf="successMessage">
     <div class="success-content">
@@ -36,7 +34,6 @@
 
   <!-- MAIN WORKSPACE -->
   <div class="workspace-grid">
-    
     <!-- LEFT COLUMN: Active Queue List -->
     <div class="queue-column">
       <fieldset class="queue-fieldset">
@@ -45,11 +42,12 @@
         <div *ngIf="loading" class="info-text">Loading incoming emergency cases...</div>
 
         <div class="queue-list" *ngIf="!loading">
-          <div *ngFor="let c of pendingCases" 
-               class="queue-item"
-               [class.selected]="selectedCase?.incidentNumber === c.incidentNumber"
-               (click)="selectCase(c)">
-            
+          <div
+            *ngFor="let c of pendingCases"
+            class="queue-item"
+            [class.selected]="selectedCase?.incidentNumber === c.incidentNumber"
+            (click)="selectCase(c)"
+          >
             <div class="queue-item-info">
               <div class="queue-item-header">
                 <strong>{{ c.patientName }}</strong>
@@ -58,17 +56,21 @@
               <p class="queue-reason">{{ c.incidentReason }}</p>
               <div class="queue-meta">
                 <span>📍 {{ c.targetHospitalName || 'Hospital Routing' }}</span>
-                <small>{{ c.createdAt | date:'shortTime' }}</small>
+                <small>{{ c.createdAt | date: 'shortTime' }}</small>
               </div>
             </div>
 
             <!-- Action Button to Approve & Occupy Bed -->
             <div class="queue-item-action">
-              <button type="button" class="btn-approve-sm" (click)="quickApprove(c, $event)" title="Approve Triage & Occupy Bed">
+              <button
+                type="button"
+                class="btn-approve-sm"
+                (click)="quickApprove(c, $event)"
+                title="Approve Triage & Occupy Bed"
+              >
                 ✔ Approve
               </button>
             </div>
-
           </div>
 
           <div *ngIf="pendingCases.length === 0" class="empty-queue">
@@ -84,8 +86,13 @@
         <legend>Patient Triage Assessment: {{ selectedCase.patientName }}</legend>
 
         <div class="case-details-summary">
-          <p><strong>Incident No:</strong> <span class="incident-badge">{{ selectedCase.incidentNumber }}</span></p>
-          <p><strong>Caller:</strong> {{ selectedCase.callerName }} ({{ selectedCase.callerPhone }})</p>
+          <p>
+            <strong>Incident No:</strong>
+            <span class="incident-badge">{{ selectedCase.incidentNumber }}</span>
+          </p>
+          <p>
+            <strong>Caller:</strong> {{ selectedCase.callerName }} ({{ selectedCase.callerPhone }})
+          </p>
           <p><strong>Destination:</strong> {{ selectedCase.targetHospitalName }}</p>
           <p><strong>Complaint:</strong> {{ selectedCase.incidentReason }}</p>
         </div>
@@ -111,10 +118,11 @@
           </div>
 
           <div class="form-actions">
-            <button type="submit" class="btn-primary">
-              Confirm Triage & Occupy Bed 🚀
-            </button>
-            <p class="info-text">Completing triage occupies the selected bed and releases the assigned ambulance back to the available fleet.</p>
+            <button type="submit" class="btn-primary">Confirm Triage & Occupy Bed 🚀</button>
+            <p class="info-text">
+              Completing triage occupies the selected bed and releases the assigned ambulance back
+              to the available fleet.
+            </p>
           </div>
         </form>
       </fieldset>
@@ -122,10 +130,12 @@
       <ng-template #emptyState>
         <fieldset class="assessment-fieldset empty-state-box">
           <legend>Assessment Panel</legend>
-          <p class="text-muted">Select an emergency case from the left queue to inspect details or click <strong>Approve</strong> for fast clearance.</p>
+          <p class="text-muted">
+            Select an emergency case from the left queue to inspect details or click
+            <strong>Approve</strong> for fast clearance.
+          </p>
         </fieldset>
       </ng-template>
     </div>
-
   </div>
 </div>

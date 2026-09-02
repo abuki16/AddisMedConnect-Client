@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -36,33 +36,42 @@ export interface Bed {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './triage.component.html',
-  styleUrls: ['./triage.component.scss']
+  styleUrls: ['./triage.component.scss'],
 })
 export class TriageComponent implements OnInit, OnDestroy {
   pendingCases: EmergencyCase[] = [];
   availableBeds: Bed[] = [];
   selectedCase: EmergencyCase | null = null;
-  
+
   pendingTriageCount: number = 0;
   assessmentPriority: string = 'Yellow';
   confirmedBedId: string = '';
-  
+
   loading: boolean = false;
   isRealtimeConnected: boolean = false;
   errorMessage: string = '';
   successMessage: string = '';
 
   hospitalId: string = '';
-  
+
   private apiUrl = 'http://localhost:5057/api';
   private hubUrl = 'http://localhost:5057/hubs/emergency';
   private hubConnection!: signalR.HubConnection;
+  private caseRequestId = 0;
 
-  constructor(private http: HttpClient, private ngZone: NgZone, private auth: AuthService) {}
+  constructor(
+    private http: HttpClient,
+    private ngZone: NgZone,
+    private auth: AuthService,
+    private changeDetector: ChangeDetectorRef,
+  ) {}
 
   ngOnInit(): void {
     this.hospitalId = this.auth.user()?.hospitalId || '';
-    if (!this.hospitalId) { this.errorMessage = 'Your account is not assigned to a hospital. Contact an administrator.'; return; }
+    if (!this.hospitalId) {
+      this.errorMessage = 'Your account is not assigned to a hospital. Contact an administrator.';
+      return;
+    }
     console.log('TriageComponent initialized. Loading data and connecting to SignalR...');
     this.loadData();
     this.initSignalRConnection();
@@ -85,7 +94,7 @@ export class TriageComponent implements OnInit, OnDestroy {
       .withUrl(this.hubUrl, {
         accessTokenFactory: () => this.auth.token || '',
         skipNegotiation: true,
-        transport: signalR.HttpTransportType.WebSockets
+        transport: signalR.HttpTransportType.WebSockets,
       })
       .withAutomaticReconnect()
       .build();
@@ -98,14 +107,20 @@ export class TriageComponent implements OnInit, OnDestroy {
           console.log('SignalR Connected successfully for Triage Station.');
         });
 
-        this.hubConnection.invoke('JoinHospitalGroup', this.hospitalId)
-          .catch(err => console.error('Failed to join hospital group via SignalR:', err));
+        this.hubConnection
+          .invoke('JoinHospitalGroup', this.hospitalId)
+          .catch((err) => console.error('Failed to join hospital group via SignalR:', err));
 
         this.hubConnection.on('ReceiveEmergencyDispatch', (emergencyCase: EmergencyCase) => {
           this.ngZone.run(() => {
             console.log('SignalR Broadcast Received (ReceiveEmergencyDispatch):', emergencyCase);
-            if (!emergencyCase.targetHospitalId || emergencyCase.targetHospitalId === this.hospitalId) {
-              const exists = this.pendingCases.some(c => c.incidentNumber === emergencyCase.incidentNumber);
+            if (
+              !emergencyCase.targetHospitalId ||
+              emergencyCase.targetHospitalId === this.hospitalId
+            ) {
+              const exists = this.pendingCases.some(
+                (c) => c.incidentNumber === emergencyCase.incidentNumber,
+              );
               if (!exists) {
                 this.pendingCases = [this.normalizeCase(emergencyCase), ...this.pendingCases];
                 this.pendingTriageCount++;
@@ -130,52 +145,70 @@ export class TriageComponent implements OnInit, OnDestroy {
   }
 
   loadPendingCount(): void {
-    this.http.get<{ count: number }>(`${this.apiUrl}/emergency-cases/hospital/${this.hospitalId}/pending-triage-count`).subscribe({
-      next: (res) => {
-        this.ngZone.run(() => {
-          this.pendingTriageCount = res?.count ?? 0;
-        });
-      },
-      error: () => {
-        this.ngZone.run(() => {
-          this.pendingTriageCount = 0;
-        });
-      }
-    });
+    this.http
+      .get<{ count: number }>(
+        `${this.apiUrl}/emergency-cases/hospital/${this.hospitalId}/pending-triage-count`,
+      )
+      .subscribe({
+        next: (res) => {
+          this.ngZone.run(() => {
+            this.pendingTriageCount = res?.count ?? 0;
+          });
+        },
+        error: () => {
+          this.ngZone.run(() => {
+            this.pendingTriageCount = 0;
+          });
+        },
+      });
   }
 
   loadEmergencyCases(): void {
+    const requestId = ++this.caseRequestId;
     this.loading = true;
     this.errorMessage = '';
+    this.changeDetector.detectChanges();
 
-    this.http.get<EmergencyCase[]>(`${this.apiUrl}/emergency-cases/hospital/${this.hospitalId}`)
+    this.http
+      .get<EmergencyCase[]>(`${this.apiUrl}/emergency-cases/hospital/${this.hospitalId}`)
       .subscribe({
         next: (data) => {
-          this.ngZone.run(() => {
+          this.render(() => {
+            if (requestId !== this.caseRequestId) return;
             console.log('API Response for Emergency Cases:', data);
             const list = data || [];
-            this.pendingCases = list.map(c => this.normalizeCase(c)).sort((a, b) => {
-              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            });
+            this.pendingCases = list
+              .map((c) => this.normalizeCase(c))
+              .sort((a, b) => {
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+              });
             this.loading = false;
             console.log('Processed pendingCases length:', this.pendingCases.length);
           });
         },
         error: (err) => {
-          this.ngZone.run(() => {
+          this.render(() => {
+            if (requestId !== this.caseRequestId) return;
             console.error('Failed to load emergency cases for hospital:', err);
             this.errorMessage = 'Failed to load incoming cases for this facility.';
             this.loading = false;
           });
-        }
+        },
       });
   }
 
   private normalizeCase(c: EmergencyCase): EmergencyCase {
     return {
       ...c,
-      assignedBedNumber: c.bedNumber || c.assignedBedNumber || 'N/A'
+      assignedBedNumber: c.bedNumber || c.assignedBedNumber || 'N/A',
     };
+  }
+
+  private render(update: () => void): void {
+    this.ngZone.run(() => {
+      update();
+      this.changeDetector.detectChanges();
+    });
   }
 
   selectCase(emergencyCase: EmergencyCase, event?: Event): void {
@@ -183,28 +216,33 @@ export class TriageComponent implements OnInit, OnDestroy {
       event.stopPropagation();
     }
     this.selectedCase = emergencyCase;
-    this.assessmentPriority = typeof emergencyCase.priority === 'string' ? emergencyCase.priority : 'Yellow';
+    this.assessmentPriority =
+      typeof emergencyCase.priority === 'string' ? emergencyCase.priority : 'Yellow';
     this.confirmedBedId = emergencyCase.assignedBedId || '';
     this.successMessage = '';
     this.errorMessage = '';
-    
+
     if (emergencyCase.targetHospitalId) {
       this.loadHospitalBeds(emergencyCase.targetHospitalId);
     }
   }
 
   loadHospitalBeds(hospitalId: string): void {
-    this.http.get<Bed[]>(`${this.apiUrl}/hospitals/${hospitalId}/beds`)
-      .subscribe({
-        next: (beds) => {
-          this.ngZone.run(() => {
-            this.availableBeds = (beds || []).filter(b => b.status === 0 || String(b.status).toLowerCase() === 'available' || b.id === this.selectedCase?.assignedBedId);
-          });
-        },
-        error: (err) => {
-          console.error('Could not load hospital beds', err);
-        }
-      });
+    this.http.get<Bed[]>(`${this.apiUrl}/hospitals/${hospitalId}/beds`).subscribe({
+      next: (beds) => {
+        this.ngZone.run(() => {
+          this.availableBeds = (beds || []).filter(
+            (b) =>
+              b.status === 0 ||
+              String(b.status).toLowerCase() === 'available' ||
+              b.id === this.selectedCase?.assignedBedId,
+          );
+        });
+      },
+      error: (err) => {
+        console.error('Could not load hospital beds', err);
+      },
+    });
   }
 
   quickApprove(emergencyCase: EmergencyCase, event: Event): void {
@@ -218,10 +256,11 @@ export class TriageComponent implements OnInit, OnDestroy {
 
     const payload = {
       priority: this.assessmentPriority,
-      confirmedBedId: this.confirmedBedId || null
+      confirmedBedId: this.confirmedBedId || null,
     };
 
-    this.http.post(`${this.apiUrl}/emergency-cases/${this.selectedCase.incidentNumber}/triage`, payload)
+    this.http
+      .post(`${this.apiUrl}/emergency-cases/${this.selectedCase.incidentNumber}/triage`, payload)
       .subscribe({
         next: () => {
           this.ngZone.run(() => {
@@ -234,7 +273,7 @@ export class TriageComponent implements OnInit, OnDestroy {
           this.ngZone.run(() => {
             this.errorMessage = err.error?.message || 'Failed to submit triage assessment.';
           });
-        }
+        },
       });
   }
 }

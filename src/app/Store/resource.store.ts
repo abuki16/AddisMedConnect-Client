@@ -85,7 +85,6 @@ export const ResourceStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
   withMethods((store, http = inject(HttpClient)) => ({
-    
     // Load Hospitals
     loadHospitals(): void {
       patchState(store, { isLoading: true, error: null });
@@ -96,7 +95,7 @@ export const ResourceStore = signalStore(
         error: (err) => {
           console.error('🔥 Failed to load hospitals:', err);
           patchState(store, { error: 'Failed to load hospitals', isLoading: false });
-        }
+        },
       });
     },
 
@@ -110,7 +109,7 @@ export const ResourceStore = signalStore(
         error: (err) => {
           console.error('🔥 Failed to load available ambulances:', err);
           patchState(store, { error: 'Failed to load available ambulances', isLoading: false });
-        }
+        },
       });
     },
 
@@ -118,7 +117,7 @@ export const ResourceStore = signalStore(
     loadBedsForHospital(hospitalId: string): void {
       if (!hospitalId) return;
       patchState(store, { isLoading: true, error: null });
-      
+
       http.get<Bed[]>(`${API_BASE}/beds/hospital/${hospitalId}`).subscribe({
         next: (beds) => {
           console.log('✅ Beds loaded successfully from API:', beds);
@@ -127,7 +126,7 @@ export const ResourceStore = signalStore(
         error: (err) => {
           console.error('🔥 Failed to load beds for hospital:', err);
           patchState(store, { error: 'Failed to load hospital beds', isLoading: false });
-        }
+        },
       });
     },
 
@@ -135,7 +134,7 @@ export const ResourceStore = signalStore(
     loadAvailableBedsForHospital(hospitalId: string): void {
       if (!hospitalId) return;
       patchState(store, { isLoading: true, error: null });
-      
+
       http.get<Bed[]>(`${API_BASE}/beds/hospital/${hospitalId}/available`).subscribe({
         next: (beds) => {
           console.log('✅ Available beds loaded successfully from API:', beds);
@@ -144,7 +143,7 @@ export const ResourceStore = signalStore(
         error: (err) => {
           console.error('🔥 Failed to load available beds for hospital:', err);
           patchState(store, { error: 'Failed to load available hospital beds', isLoading: false });
-        }
+        },
       });
     },
 
@@ -158,17 +157,17 @@ export const ResourceStore = signalStore(
             patchState(store, {
               isLoading: false,
               beds: [...currentBeds, newBed],
-              successMessage: 'Bed created successfully!'
+              successMessage: 'Bed created successfully!',
             });
           },
           error: (err) => {
             console.error('🔥 Failed to create bed:', err);
             patchState(store, {
               isLoading: false,
-              error: err?.error?.message || 'Failed to create bed'
+              error: err?.error?.message || 'Failed to create bed',
             });
-          }
-        })
+          },
+        }),
       );
     },
 
@@ -177,7 +176,7 @@ export const ResourceStore = signalStore(
       return http.patch<void>(`${API_BASE}/beds/${bedId}/status`, { status }).pipe(
         tap({
           next: () => {
-            const updatedBeds = store.beds().map(b => {
+            const updatedBeds = store.beds().map((b) => {
               const id = b.id || b.Id;
               if (id === bedId) {
                 return { ...b, status, Status: status, lastStatusUpdate: new Date().toISOString() };
@@ -189,10 +188,9 @@ export const ResourceStore = signalStore(
           error: (err) => {
             console.error('🔥 Failed to update bed status:', err);
             patchState(store, { error: 'Failed to update bed status' });
-          }
-        })
+          },
+        }),
       );
-    }
-
-  }))
+    },
+  })),
 );
