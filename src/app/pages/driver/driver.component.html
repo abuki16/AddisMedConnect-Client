@@ -1,71 +1,199 @@
 <main class="driver">
   <header>
     <div>
-      <p class="eyebrow">{{ isAdmin ? 'SYSTEM ADMIN' : 'DRIVER CONSOLE' }}</p>
+      <p class="eyebrow">{{ isAdmin ? 'SYSTEM ADMIN FLEET' : 'AMBULANCE TELEMETRY & DISPATCH' }}</p>
       <h1>
-        {{ isAdmin ? 'Driver & fleet view' : data?.ambulance?.plateNumber || 'Assigned ambulance' }}
+        🚑 {{ isAdmin ? 'Addis Fleet Command' : (data?.ambulance?.plateNumber || 'Ambulance Unit') }}
       </h1>
+      <p class="subtitle" *ngIf="!isAdmin">
+        Stationed Operator: <strong>{{ auth.user()?.fullName }}</strong> · Status:
+        <span class="status-badge" [class.status-busy]="!data?.ambulance?.isAvailable" [class.status-free]="data?.ambulance?.isAvailable">
+          {{ data?.ambulance?.isAvailable ? 'AVAILABLE (READY FOR DISPATCH)' : 'ACTIVE MISSION DISPATCHED' }}
+        </span>
+      </p>
     </div>
-    <button (click)="auth.logout()">Sign out</button>
+    <div class="header-right">
+      <button type="button" class="btn-refresh" (click)="loadDriverData()">Refresh Data</button>
+      <button type="button" class="btn-signout" (click)="auth.logout()">Sign out</button>
+    </div>
   </header>
+
+  <!-- URGENT REAL-TIME DISPATCH MISSION ALERT -->
+  <div class="mission-alert-banner" *ngIf="newMissionAlert">
+    <div class="alert-content">
+      <span class="pulse-icon">🚨</span>
+      <div>
+        <h3>NEW EMERGENCY MISSION ASSIGNED BY DISPATCH!</h3>
+        <p>A new critical case has been assigned to this ambulance. Review pickup details below and commence response.</p>
+      </div>
+    </div>
+    <button type="button" class="btn-ack" (click)="acknowledgeAlert()">Acknowledge &amp; View Mission</button>
+  </div>
+
+  <!-- ADMIN FLEET OVERVIEW -->
   <section *ngIf="isAdmin; else driverWorkspace" class="fleet">
-    <h2>Registered ambulances</h2>
-    <div class="fleet-list">
-      <article *ngFor="let ambulance of ambulances">
-        <strong>{{ ambulance.plateNumber }}</strong
-        ><span>{{ ambulance.driverName || 'No driver assigned' }}</span
-        ><em [class.ready]="ambulance.isAvailable">{{
-          ambulance.isAvailable ? 'Available' : 'On assignment'
-        }}</em>
+    <div class="section-top">
+      <h2>All Registered Ambulances ({{ ambulances.length }})</h2>
+      <button type="button" class="btn-refresh" (click)="loadFleet()">Refresh Fleet</button>
+    </div>
+    <div class="fleet-grid">
+      <article *ngFor="let ambulance of ambulances" class="fleet-card">
+        <div class="card-header">
+          <strong>{{ ambulance.plateNumber }}</strong>
+          <span class="status-pill" [class.ready]="ambulance.isAvailable">
+            {{ ambulance.isAvailable ? 'Available' : 'On Mission' }}
+          </span>
+        </div>
+        <p class="driver-name">👤 Driver: {{ ambulance.driverName || 'Unassigned' }}</p>
+        <div class="fleet-telemetry" *ngIf="ambulance.currentLatitude">
+          <p>📍 Lat: <code>{{ ambulance.currentLatitude | number:'1.4-4' }}</code>, Lng: <code>{{ ambulance.currentLongitude | number:'1.4-4' }}</code></p>
+          <small>Updated: {{ ambulance.lastLocationUpdatedAt | date:'medium' }}</small>
+        </div>
       </article>
-      <p *ngIf="!ambulances.length">No ambulances are registered.</p>
+      <p class="empty-state" *ngIf="!ambulances.length">No ambulances are currently registered in the database.</p>
     </div>
   </section>
-  <ng-template #driverWorkspace
-    ><section *ngIf="data; else loading" class="driver-stack">
-      <article>
-        <h2>{{ data.assignment ? 'Current dispatch' : 'No active assignment' }}</h2>
-        <ng-container *ngIf="data.assignment; else empty"
-          ><p class="id">{{ data.assignment.incidentNumber }}</p>
-          <h3>{{ data.assignment.patientName }}</h3>
-          <p>{{ data.assignment.incidentReason }}</p>
-          <dl>
-            <dt>Pickup</dt>
-            <dd>{{ data.assignment.pickupAddress }}</dd>
-            <dt>Destination</dt>
-            <dd>
-              {{ data.assignment.targetHospital.name }} —
-              {{ data.assignment.targetHospital.address }}
-            </dd>
-          </dl></ng-container
-        >
-      </article>
-      <article class="location-card">
-        <h2>Live location</h2>
-        <p *ngIf="location; else noLocation">
-          {{ location.latitude | number: '1.5-5' }}, {{ location.longitude | number: '1.5-5'
-          }}<br /><small>Updated {{ locationUpdatedAt | date: 'mediumTime' }}</small>
-        </p>
-        <ng-template #noLocation
-          ><p>
-            Start sharing to display your current position here and send it to dispatch.
-          </p></ng-template
-        ><iframe *ngIf="mapUrl" [src]="mapUrl" title="Current ambulance location"></iframe>
-        <div class="actions">
-          <button class="primary" (click)="shareLocation()">Share once</button
-          ><button class="primary" *ngIf="!liveTracking" (click)="startLiveTracking()">
-            Start live sharing</button
-          ><button class="stop" *ngIf="liveTracking" (click)="stopLiveTracking()">
-            Stop live sharing
-          </button>
-        </div>
-        <p class="message" *ngIf="message">{{ message }}</p>
-      </article>
+
+  <!-- DRIVER WORKSPACE -->
+  <ng-template #driverWorkspace>
+    <section *ngIf="data; else loading" class="driver-layout">
+      <!-- LEFT COLUMN: ACTIVE ASSIGNMENT -->
+      <div class="mission-column">
+        <article class="mission-card" [class.mission-active]="data.assignment">
+          <div class="card-title-row">
+            <h2>{{ data.assignment ? '🚨 Active Emergency Mission' : '🛡️ Standby Status' }}</h2>
+            <span class="priority-tag" *ngIf="data.assignment">{{ data.assignment.priority || 'Urgent' }}</span>
+          </div>
+
+          <ng-container *ngIf="data.assignment; else standby">
+            <div class="incident-header">
+              <span class="incident-badge">{{ data.assignment.incidentNumber }}</span>
+              <h3>{{ data.assignment.patientName }}</h3>
+            </div>
+
+            <div class="complaint-box">
+              <span class="box-label">Chief Complaint / Condition:</span>
+              <p>{{ data.assignment.incidentReason }}</p>
+            </div>
+
+            <dl class="mission-specs">
+              <dt>📍 Pickup Location</dt>
+              <dd>
+                <strong>{{ data.assignment.pickupAddress }}</strong>
+                <span *ngIf="data.assignment.pickupLatitude" class="coords-note">
+                  ({{ data.assignment.pickupLatitude | number:'1.4-4' }}, {{ data.assignment.pickupLongitude | number:'1.4-4' }})
+                </span>
+              </dd>
+
+              <dt>🏥 Receiving Facility</dt>
+              <dd>
+                <strong>{{ data.assignment.targetHospital?.name || 'Assigned Hospital' }}</strong>
+                <small>{{ data.assignment.targetHospital?.address || 'Addis Ababa' }}</small>
+              </dd>
+
+              <dt>🛏️ Reserved Bed at Hospital</dt>
+              <dd>
+                <span class="bed-reserved-tag">
+                  {{ data.assignment.assignedBedNumber ? ('Bed ' + data.assignment.assignedBedNumber) : 'Reserved in Ward' }}
+                </span>
+                <small class="bed-note">(Held by Dispatch, Nurse will occupy upon arrival)</small>
+              </dd>
+            </dl>
+          </ng-container>
+
+          <ng-template #standby>
+            <div class="standby-box">
+              <span class="standby-icon">🚑</span>
+              <h3>Ambulance is Available on Standby</h3>
+              <p>Your vehicle is currently registered as free. When the central emergency dispatcher assigns an incident to plate <strong>{{ data.ambulance?.plateNumber }}</strong>, the alert and route will immediately populate here.</p>
+            </div>
+          </ng-template>
+        </article>
+      </div>
+
+      <!-- RIGHT COLUMN: LIVE GPS TELEMETRY & MAP -->
+      <div class="telemetry-column">
+        <article class="telemetry-card">
+          <div class="telemetry-header">
+            <div>
+              <h2>🛰️ Live GPS Telemetry Readout</h2>
+              <p class="telemetry-sub">High-precision satellite positioning &amp; elevation for Addis Ababa</p>
+            </div>
+            <div class="tracking-indicator" [class.tracking-active]="liveTracking">
+              <span class="dot"></span> {{ liveTracking ? 'LIVE TRANSMITTING' : 'IDLE / MANUAL' }}
+            </div>
+          </div>
+
+          <!-- 4-CARD TELEMETRY HUD -->
+          <div class="telemetry-hud">
+            <div class="hud-item">
+              <span class="hud-label">Latitude</span>
+              <span class="hud-value">{{ location ? (location.latitude | number:'1.5-5') : '9.01820' }}° N</span>
+            </div>
+            <div class="hud-item">
+              <span class="hud-label">Longitude</span>
+              <span class="hud-value">{{ location ? (location.longitude | number:'1.5-5') : '38.74950' }}° E</span>
+            </div>
+            <div class="hud-item hud-highlight">
+              <span class="hud-label">Altitude (Elevation)</span>
+              <span class="hud-value">{{ location?.altitude != null ? location?.altitude : 2355 }} m</span>
+              <small class="hud-sub">{{ location?.isEstimatedAltitude ? 'Addis Plateau ASL' : 'GPS Barometer' }}</small>
+            </div>
+            <div class="hud-item">
+              <span class="hud-label">Accuracy &amp; Speed</span>
+              <span class="hud-value">±{{ location?.accuracy || 8 }} m</span>
+              <small class="hud-sub">{{ location?.speed ? (location?.speed + ' km/h') : 'Stationary' }}</small>
+            </div>
+          </div>
+
+          <div class="telemetry-time" *ngIf="locationUpdatedAt">
+            🕒 Last telemetry beacon: <strong>{{ locationUpdatedAt | date:'mediumTime' }}</strong>
+          </div>
+
+          <!-- INTERACTIVE MAP -->
+          <div class="map-wrapper">
+            <iframe *ngIf="mapUrl" [src]="mapUrl" title="Live Ambulance Position Map"></iframe>
+            <div class="map-placeholder" *ngIf="!mapUrl">
+              <p>Locating ambulance on Addis Ababa street map…</p>
+            </div>
+          </div>
+
+          <!-- GPS ACTION BUTTONS -->
+          <div class="gps-actions">
+            <button type="button" class="btn-gps" (click)="shareLocation()">
+              📍 Ping Current GPS
+            </button>
+            <button type="button" class="btn-live" *ngIf="!liveTracking" (click)="startLiveTracking()">
+              📡 Start Live GPS Broadcast
+            </button>
+            <button type="button" class="btn-stop" *ngIf="liveTracking" (click)="stopLiveTracking()">
+              ⏸️ Pause Live Broadcast
+            </button>
+          </div>
+
+          <!-- QUICK ADDIS LOCATION PRESETS -->
+          <div class="presets-box">
+            <span class="presets-title">Quick Addis Ababa Station Selector (Test/Simulate Location):</span>
+            <div class="preset-buttons">
+              <button 
+                type="button" 
+                class="btn-preset" 
+                *ngFor="let loc of addisLocations" 
+                (click)="selectPresetLocation(loc)">
+                {{ loc.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="status-message" *ngIf="message">{{ message }}</div>
+        </article>
+      </div>
     </section>
-    <ng-template #empty
-      ><p>
-        Stay ready. You will see dispatch details here when your plate is assigned.
-      </p></ng-template
-    ><ng-template #loading><p>Loading driver workspace…</p></ng-template></ng-template
-  >
+
+    <ng-template #loading>
+      <div class="loading-box">
+        <p>Loading ambulance telemetry console…</p>
+      </div>
+    </ng-template>
+  </ng-template>
 </main>

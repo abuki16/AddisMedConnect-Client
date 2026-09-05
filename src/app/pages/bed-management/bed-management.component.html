@@ -1,0 +1,216 @@
+<main class="bed-admin">
+  <header>
+    <div>
+      <div class="nav-breadcrumbs">
+        <a routerLink="/admin">&larr; Control Center</a>
+        <span>/</span>
+        <a routerLink="/admin/users">User Access</a>
+      </div>
+      <p class="eyebrow">SYSTEM ADMIN · RESOURCE REGISTRY</p>
+      <h1>Hospital Bed Coordination &amp; Inventory</h1>
+      <p>Configure hospital wards, monitor live bed statuses, and register new emergency beds across Addis Ababa.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn-add-bed" (click)="openCreateModal()">
+        ➕ Register New Bed
+      </button>
+      <button type="button" class="btn-refresh" (click)="loadBeds()">
+        🔄 Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- NOTICES -->
+  <div class="notice success-notice" *ngIf="message && !isErrorMessage">
+    {{ message }}
+  </div>
+  <div class="notice error-notice" *ngIf="message && isErrorMessage">
+    ⚠️ {{ message }}
+  </div>
+
+  <!-- STATS CARDS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Total Beds in Registry</span>
+      <span class="stat-value">{{ beds.length }}</span>
+      <small>Across {{ hospitals.length }} Hospitals</small>
+    </div>
+    <div class="stat-card stat-available">
+      <span class="stat-label">🟢 Free &amp; Available</span>
+      <span class="stat-value">
+        {{ getStatusCount('available') }}
+      </span>
+      <small>Ready for immediate intake</small>
+    </div>
+    <div class="stat-card stat-reserved">
+      <span class="stat-label">🟡 Reserved (En Route)</span>
+      <span class="stat-value">
+        {{ getStatusCount('reserved') }}
+      </span>
+      <small>Held by central dispatch</small>
+    </div>
+    <div class="stat-card stat-occupied">
+      <span class="stat-label">🔴 Occupied (Admitted)</span>
+      <span class="stat-value">
+        {{ getStatusCount('occupied') }}
+      </span>
+      <small>Under emergency treatment</small>
+    </div>
+  </div>
+
+  <!-- INVENTORY SECTION -->
+  <section class="panel">
+    <!-- FILTERS TOOLBAR -->
+    <div class="filters-toolbar">
+      <div class="filter-group">
+        <label>Facility:</label>
+        <select [(ngModel)]="selectedHospitalFilter">
+          <option value="">All Hospitals ({{ hospitals.length }})</option>
+          <option *ngFor="let h of hospitals" [value]="h.id">{{ h.name }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Ward / Unit:</label>
+        <select [(ngModel)]="selectedWardFilter">
+          <option value="">All Ward Types</option>
+          <option *ngFor="let w of wardOptions" [value]="w">{{ w }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Status:</label>
+        <select [(ngModel)]="selectedStatusFilter">
+          <option value="">All Statuses</option>
+          <option value="Available">Available</option>
+          <option value="Reserved">Reserved</option>
+          <option value="Occupied">Occupied</option>
+          <option value="Maintenance">Maintenance</option>
+        </select>
+      </div>
+
+      <div class="count-badge">
+        Showing {{ filteredBeds.length }} of {{ beds.length }} beds
+      </div>
+    </div>
+
+    <div class="empty-state" *ngIf="loading">
+      <p>Loading bed registry…</p>
+    </div>
+
+    <!-- BEDS TABLE -->
+    <div class="table-responsive" *ngIf="!loading && filteredBeds.length">
+      <table class="beds-table">
+        <thead>
+          <tr>
+            <th>Bed Number</th>
+            <th>Facility</th>
+            <th>Ward Type</th>
+            <th>Bed Code</th>
+            <th>Live Status</th>
+            <th>Current Incident</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let bed of filteredBeds">
+            <td>
+              <strong>{{ bed.bedNumber }}</strong>
+            </td>
+            <td>{{ getHospitalName(bed.hospitalId, bed) }}</td>
+            <td>
+              <span class="ward-tag">{{ bed.wardType }}</span>
+            </td>
+            <td>
+              <code>{{ bed.code }}</code>
+            </td>
+            <td>
+              <span class="status-badge" [ngClass]="getStatusClass(bed.status)">
+                {{ getStatusLabel(bed.status) }}
+              </span>
+            </td>
+            <td>
+              <span *ngIf="bed.currentCaseId" class="case-code">{{ bed.currentCaseId }}</span>
+              <span *ngIf="!bed.currentCaseId" class="text-muted">—</span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button 
+                  type="button" 
+                  class="btn-action-free" 
+                  *ngIf="getStatusLabel(bed.status) !== 'Available'"
+                  (click)="updateStatus(bed, 0)"
+                  title="Make Available">
+                  Free Bed
+                </button>
+                <button 
+                  type="button" 
+                  class="btn-action-maint" 
+                  *ngIf="getStatusLabel(bed.status) !== 'Maintenance'"
+                  (click)="updateStatus(bed, 3)"
+                  title="Mark for Maintenance">
+                  Block
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="empty-state" *ngIf="!loading && !filteredBeds.length">
+      <p>No beds found matching the selected filters. Click "Register New Bed" above to add one.</p>
+    </div>
+  </section>
+
+  <!-- CREATE BED MODAL -->
+  <div class="modal-backdrop" *ngIf="showCreateModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>🛏️ Register New Hospital Bed</h3>
+        <button type="button" class="btn-close" (click)="closeCreateModal()">✕</button>
+      </div>
+
+      <form [formGroup]="bedForm" (ngSubmit)="createBed()">
+        <div class="modal-body">
+          <label>
+            Hospital Facility <span class="required">*</span>
+            <select formControlName="hospitalId">
+              <option value="" disabled>-- Select Hospital --</option>
+              <option *ngFor="let h of hospitals" [value]="h.id">
+                {{ h.name }} ({{ h.subCity }})
+              </option>
+            </select>
+          </label>
+
+          <div class="form-grid-2">
+            <label>
+              Bed Number <span class="required">*</span>
+              <input formControlName="bedNumber" placeholder="e.g. ICU-05 or BED-12" />
+            </label>
+
+            <label>
+              Ward Type <span class="required">*</span>
+              <select formControlName="wardType">
+                <option *ngFor="let w of wardOptions" [value]="w">{{ w }}</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            Unique System Bed Code <span class="required">*</span>
+            <input formControlName="code" placeholder="e.g. TASH-ICU-05" />
+            <small class="hint">Must be globally unique across all Addis hospitals.</small>
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeCreateModal()">Cancel</button>
+          <button type="submit" class="btn-save" [disabled]="bedForm.invalid || saving">
+            {{ saving ? 'Registering…' : 'Register Bed' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>

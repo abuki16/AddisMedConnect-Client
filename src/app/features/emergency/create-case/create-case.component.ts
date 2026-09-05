@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { ResourceStore, Hospital, Ambulance, Bed } from '../../../Store/resource.store';
+import { apiUrl } from '../../../core/api.config';
 
 interface CapacityResult {
   isAvailable: boolean;
@@ -60,7 +61,7 @@ export class CreateCaseComponent implements OnInit {
   capacityWarning: CapacityResult | null = null;
   recommendations: HospitalRecommendation[] = [];
 
-  wardTypes: string[] = ['Emergency', 'ICU', 'Trauma'];
+  wardTypes: string[] = ['Emergency', 'ICU', 'Trauma', 'Pediatrics', 'Maternity'];
 
   commonLocations: string[] = [
     'Addis Ketema',
@@ -135,7 +136,7 @@ export class CreateCaseComponent implements OnInit {
 
   loadPendingTriageCount(): void {
     this.http
-      .get<{ count: number }>('http://localhost:5057/api/emergency-cases/pending-triage-count')
+      .get<{ count: number }>(`${apiUrl}/emergency-cases/pending-triage-count`)
       .subscribe({
         next: (res) => {
           this.pendingTriageCount = res.count;
@@ -185,7 +186,7 @@ export class CreateCaseComponent implements OnInit {
 
     this.isCheckingCapacity = true;
     this.http
-      .get<CapacityResult>('http://localhost:5057/api/emergency-cases/check-capacity', { params })
+      .get<CapacityResult>(`${apiUrl}/emergency-cases/check-capacity`, { params })
       .subscribe({
         next: (result) => {
           this.isCheckingCapacity = false;
@@ -257,7 +258,7 @@ export class CreateCaseComponent implements OnInit {
       .set('wardType', wardType || 'Emergency');
     this.http
       .get<HospitalRecommendation[]>(
-        'http://localhost:5057/api/emergency-cases/hospital-recommendations',
+        `${apiUrl}/emergency-cases/hospital-recommendations`,
         { params },
       )
       .subscribe({
@@ -311,7 +312,7 @@ export class CreateCaseComponent implements OnInit {
     const formValues = this.intakeForm.getRawValue();
     delete formValues.isUnknownPatient;
 
-    this.http.post('http://localhost:5057/api/emergency-cases', formValues).subscribe({
+    this.http.post(`${apiUrl}/emergency-cases`, formValues).subscribe({
       next: (response: any) => {
         this.isSubmitting = false;
         this.createdIncidentNumber = response?.incidentNumber || response?.IncidentNumber;

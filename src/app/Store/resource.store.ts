@@ -2,6 +2,7 @@ import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
 import { inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+import { apiUrl } from '../core/api.config';
 
 export interface Hospital {
   id?: string;
@@ -79,10 +80,9 @@ const initialState: ResourceState = {
   successMessage: null,
 };
 
-const API_BASE = 'http://localhost:5057/api';
+const API_BASE = apiUrl;
 
 export const ResourceStore = signalStore(
-  { providedIn: 'root' },
   withState(initialState),
   withMethods((store, http = inject(HttpClient)) => ({
     // Load Hospitals

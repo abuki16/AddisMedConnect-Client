@@ -1,51 +1,129 @@
 <main class="workspace">
   <header>
     <div>
-      <p class="eyebrow">DISCHARGE CLERK</p>
-      <h1>Patient discharge &amp; bed release</h1>
-      <p>{{ auth.user()?.hospitalName }} · admitted patients with occupied beds</p>
+      <p class="eyebrow">PATIENT EXIT &amp; BED CLEARANCE</p>
+      <h1>Hospital Discharge &amp; Bed Release Console</h1>
+      <p class="header-sub">
+        Facility: <strong>{{ auth.user()?.hospitalName || 'Central Network' }}</strong> · Active Patient Admissions Occupying Beds
+      </p>
     </div>
-    <button type="button" (click)="auth.logout()">Sign out</button>
+    <div class="header-actions">
+      <!-- Admin Hospital Switcher -->
+      <div class="hospital-switcher" *ngIf="auth.user()?.role === 'SystemAdmin' && hospitals.length">
+        <label>Hospital: </label>
+        <select [(ngModel)]="selectedHospitalId" (ngModelChange)="load()">
+          <option *ngFor="let h of hospitals" [value]="h.id">{{ h.name }}</option>
+        </select>
+      </div>
+
+      <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading">Refresh List</button>
+      <button type="button" class="btn-signout" (click)="auth.logout()">Sign out</button>
+    </div>
   </header>
+
   <section class="panel">
     <div class="toolbar">
       <div>
-        <h2>Admitted cases</h2>
-        <p>Discharging a patient marks the case resolved and releases its occupied bed.</p>
+        <h2>Occupied Beds Awaiting Patient Discharge ({{ cases.length }})</h2>
+        <p>When a patient finishes treatment or is referred, complete the discharge form below to return the bed to FREE status for dispatchers.</p>
       </div>
-      <button type="button" class="secondary" (click)="load()" [disabled]="loading">Refresh</button>
+      <div class="badge-active">{{ cases.length }} Occupied Beds</div>
     </div>
-    <p class="notice" *ngIf="message">{{ message }}</p>
-    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
-    <p class="empty" *ngIf="loading">Loading admitted cases…</p>
+
+    <!-- NOTICES -->
+    <div class="notice success-notice" *ngIf="message">{{ message }}</div>
+    <div class="notice error-notice" *ngIf="errorMessage">{{ errorMessage }}</div>
+    
+    <div class="empty" *ngIf="loading">
+      <p>Loading admitted hospital admissions…</p>
+    </div>
+
+    <!-- ADMITTED CASES GRID -->
     <div class="case-list" *ngIf="!loading && cases.length">
-      <article class="case" *ngFor="let caseItem of cases">
-        <div>
-          <p class="incident">{{ caseItem.incidentNumber }}</p>
+      <article class="case-card" *ngFor="let caseItem of cases">
+        <div class="case-main">
+          <div class="badge-row">
+            <span class="incident-badge">{{ caseItem.incidentNumber }}</span>
+            <span class="status-occupied">🛏️ Bed Currently Occupied</span>
+          </div>
+
           <h3>{{ caseItem.patientName }}</h3>
-          <p>{{ caseItem.incidentReason }}</p>
+          <p class="reason">{{ caseItem.incidentReason }}</p>
+
+          <dl class="specs">
+            <dt>Assigned Bed:</dt>
+            <dd><strong>{{ caseItem.bedNumber ? ('Bed ' + caseItem.bedNumber) : 'Assigned Ward Bed' }}</strong></dd>
+
+            <dt>Admitted At:</dt>
+            <dd>{{ caseItem.createdAt | date:'medium' }}</dd>
+          </dl>
         </div>
-        <dl>
-          <dt>Occupied bed</dt>
-          <dd>{{ caseItem.bedNumber || 'Assigned bed' }}</dd>
-          <dt>Created</dt>
-          <dd>{{ caseItem.createdAt | date: 'medium' }}</dd>
-        </dl>
-        <button
-          type="button"
-          (click)="discharge(caseItem)"
-          [disabled]="dischargingIncident === caseItem.incidentNumber"
-        >
-          {{
-            dischargingIncident === caseItem.incidentNumber
-              ? 'Releasing…'
-              : 'Discharge & release bed'
-          }}
-        </button>
+
+        <div class="case-actions">
+          <button
+            type="button"
+            class="btn-discharge"
+            (click)="openDischargeModal(caseItem)"
+            [disabled]="dischargingIncident === caseItem.incidentNumber"
+          >
+            📋 Process Discharge &amp; Free Bed
+          </button>
+        </div>
       </article>
     </div>
-    <p class="empty" *ngIf="!loading && !cases.length">
-      There are no admitted patients awaiting discharge.
-    </p>
+
+    <div class="empty-state" *ngIf="!loading && !cases.length">
+      <span class="empty-icon">✅</span>
+      <h3>All Beds in this Ward are Free or Handled</h3>
+      <p>There are no active patients occupying beds awaiting discharge at this facility.</p>
+    </div>
   </section>
+
+  <!-- DISCHARGE MODAL DIALOG -->
+  <div class="modal-backdrop" *ngIf="selectedCaseForDischarge">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>📋 Finalize Patient Discharge</h3>
+        <button type="button" class="btn-close" (click)="closeDischargeModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-patient-info">
+          <p><strong>Patient:</strong> {{ selectedCaseForDischarge.patientName }} ({{ selectedCaseForDischarge.incidentNumber }})</p>
+          <p><strong>Bed to be freed:</strong> <span class="bed-highlight">{{ selectedCaseForDischarge.bedNumber ? ('Bed ' + selectedCaseForDischarge.bedNumber) : 'Occupied Bed' }}</span></p>
+        </div>
+
+        <div class="form-group">
+          <label>Discharge Disposition / Outcome <span class="required">*</span></label>
+          <select [(ngModel)]="dischargeDisposition">
+            <option *ngFor="let opt of dispositionOptions" [value]="opt">{{ opt }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Clinical Discharge Summary &amp; Instructions</label>
+          <textarea 
+            [(ngModel)]="dischargeNotes" 
+            rows="3" 
+            placeholder="Enter clinical condition at discharge, medications prescribed, or referral notes...">
+          </textarea>
+        </div>
+
+        <div class="discharge-warning">
+          ⚠️ <strong>Action impact:</strong> Submitting will mark this incident as <em>Resolved</em> and instantly update the bed status to <strong>AVAILABLE</strong> in the central coordination registry so dispatchers can assign new patients.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" (click)="closeDischargeModal()">Cancel</button>
+        <button 
+          type="button" 
+          class="btn-confirm-discharge" 
+          (click)="confirmDischarge()" 
+          [disabled]="dischargingIncident === selectedCaseForDischarge.incidentNumber">
+          {{ dischargingIncident === selectedCaseForDischarge.incidentNumber ? 'Releasing Bed…' : 'Confirm Discharge & Free Bed' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </main>

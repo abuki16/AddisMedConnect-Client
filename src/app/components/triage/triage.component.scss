@@ -12,18 +12,42 @@
   text-align: center;
   margin-bottom: 24px;
 
+  .nav-breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+
+    a {
+      color: #2b8a3e;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
+    span { color: #adb5bd; }
+  }
+
   .header-top-row {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     gap: 16px;
     position: relative;
+    flex-wrap: wrap;
 
     h2 {
       color: #c92a2a;
       font-size: 26px;
       margin: 0;
       font-weight: 800;
+      text-align: left;
+    }
+
+    .header-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
     .live-status-badge {
@@ -77,6 +101,31 @@
   100% {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(12, 166, 120, 0);
+  }
+}
+
+.hospital-switcher-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #e7f5ff;
+  border: 1px solid #74c0fc;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1971c2;
+
+  .hospital-select {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #a5d8ff;
+    background: #fff;
+    font-size: 14px;
+    color: #1e293b;
+    cursor: pointer;
   }
 }
 

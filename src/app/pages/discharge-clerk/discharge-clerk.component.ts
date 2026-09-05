@@ -1,10 +1,11 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../core/auth.service';
 import { apiUrl } from '../../core/api.config';
 
-interface AdmittedCase {
+export interface AdmittedCase {
   incidentNumber: string;
   patientName: string;
   incidentReason: string;
@@ -12,20 +13,38 @@ interface AdmittedCase {
   createdAt: string;
   status: string;
   assignedBedId?: string;
+  priority?: string;
 }
 
 @Component({
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './discharge-clerk.component.html',
   styleUrl: './discharge-clerk.component.scss',
 })
 export class DischargeClerkComponent implements OnInit {
   cases: AdmittedCase[] = [];
+  hospitals: any[] = [];
+  selectedHospitalId = '';
   message = '';
   errorMessage = '';
   loading = true;
   dischargingIncident = '';
+
+  // Discharge modal state
+  selectedCaseForDischarge: AdmittedCase | null = null;
+  dischargeDisposition = 'Discharged Home (Recovered)';
+  dischargeNotes = '';
+  referralHospitalName = '';
+
+  readonly dispositionOptions = [
+    'Discharged Home (Recovered)',
+    'Referred to Tertiary / Specialized Hospital',
+    'Transferred to Inpatient General Ward',
+    'Discharged with Outpatient Follow-up',
+    'Deceased',
+  ];
+
   private loadRequestId = 0;
 
   constructor(
@@ -36,11 +55,27 @@ export class DischargeClerkComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.load();
+    const user = this.auth.user();
+    this.selectedHospitalId = user?.hospitalId || '';
+
+    if (user?.role === 'SystemAdmin') {
+      this.http.get<any[]>(`${apiUrl}/hospitals`).subscribe({
+        next: (rows) => {
+          this.hospitals = rows || [];
+          if (!this.selectedHospitalId && this.hospitals.length > 0) {
+            this.selectedHospitalId = this.hospitals[0].id;
+          }
+          this.load();
+        },
+        error: () => this.load(),
+      });
+    } else {
+      this.load();
+    }
   }
 
   load(): void {
-    const hospitalId = this.auth.user()?.hospitalId;
+    const hospitalId = this.selectedHospitalId || this.auth.user()?.hospitalId;
     if (!hospitalId) {
       this.render(() => {
         this.loading = false;
@@ -62,7 +97,9 @@ export class DischargeClerkComponent implements OnInit {
             if (requestId !== this.loadRequestId) return;
             const data = rows || [];
             this.cases = data.filter(
-              (caseItem) => caseItem.status === 'Admitted' && !!caseItem.assignedBedId,
+              (caseItem) =>
+                (caseItem.status === 'Admitted' || caseItem.status === 'Dispatched') &&
+                !!caseItem.assignedBedId,
             );
             this.loading = false;
           });
@@ -77,26 +114,37 @@ export class DischargeClerkComponent implements OnInit {
       });
   }
 
-  discharge(caseItem: AdmittedCase): void {
-    if (
-      !confirm(
-        `Discharge or transfer ${caseItem.patientName} and release ${caseItem.bedNumber || 'the occupied bed'}?`,
-      )
-    )
-      return;
+  openDischargeModal(caseItem: AdmittedCase): void {
+    this.selectedCaseForDischarge = caseItem;
+    this.dischargeDisposition = 'Discharged Home (Recovered)';
+    this.dischargeNotes = `Patient ${caseItem.patientName} evaluated; condition stabilized. Bed ${caseItem.bedNumber || 'held'} cleared for emergency intake.`;
+    this.referralHospitalName = '';
+  }
 
+  closeDischargeModal(): void {
+    this.selectedCaseForDischarge = null;
+  }
+
+  confirmDischarge(): void {
+    if (!this.selectedCaseForDischarge) return;
+
+    const caseItem = this.selectedCaseForDischarge;
     this.dischargingIncident = caseItem.incidentNumber;
     this.message = '';
     this.errorMessage = '';
     this.changeDetector.detectChanges();
 
     this.http
-      .post<void>(`${apiUrl}/emergency-cases/${caseItem.incidentNumber}/discharge`, {})
+      .post<void>(`${apiUrl}/emergency-cases/${caseItem.incidentNumber}/discharge`, {
+        disposition: this.dischargeDisposition,
+        notes: this.dischargeNotes,
+      })
       .subscribe({
         next: () => {
           this.render(() => {
-            this.message = `${caseItem.patientName} has been discharged and ${caseItem.bedNumber || 'the bed'} is available.`;
+            this.message = `✅ Patient ${caseItem.patientName} (${caseItem.incidentNumber}) discharged. Bed ${caseItem.bedNumber || 'assignment'} is now FREE & AVAILABLE for incoming emergencies!`;
             this.dischargingIncident = '';
+            this.selectedCaseForDischarge = null;
             this.load();
           });
         },

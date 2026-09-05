@@ -1,13 +1,38 @@
 <div class="dispatch-container">
   <div class="dispatch-header">
-    <div class="header-top-row">
-      <h2>AddisMedConnect</h2>
-      <span class="live-status-badge" [class.connected]="isRealtimeConnected">
-        <span class="pulse-dot"></span>
-        {{ isRealtimeConnected ? 'Live Sync Active' : 'Connecting...' }}
-      </span>
+    <div *ngIf="isAdmin" class="nav-breadcrumbs mb-2">
+      <a routerLink="/admin">&larr; Control Center</a>
+      <span>/</span>
+      <a routerLink="/admin/beds">Bed Coordination</a>
     </div>
-    <p>Emergency Triage & Resource Coordination Station</p>
+    <div class="header-top-row">
+      <div>
+        <h2>AddisMedConnect</h2>
+        <p>Emergency Triage &amp; Resource Coordination Station</p>
+      </div>
+      <div class="header-actions-group">
+        <span class="live-status-badge" [class.connected]="isRealtimeConnected">
+          <span class="pulse-dot"></span>
+          {{ isRealtimeConnected ? 'Live Sync Active' : 'Connecting...' }}
+        </span>
+        <button type="button" class="btn-secondary-link" (click)="auth.logout()">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN HOSPITAL SWITCHER -->
+  <div class="hospital-switcher-banner" *ngIf="isAdmin && hospitals.length">
+    <label for="triageHospitalSelect">Facility Scope (System Admin View):</label>
+    <select
+      id="triageHospitalSelect"
+      [ngModel]="hospitalId"
+      (ngModelChange)="onHospitalChange($event)"
+      class="hospital-select"
+    >
+      <option *ngFor="let h of hospitals" [value]="h.id">
+        {{ h.name }} ({{ h.subCity }}) — {{ h.availableBeds }}/{{ h.totalBeds }} beds available
+      </option>
+    </select>
   </div>
 
   <!-- LIVE METRICS BAR -->

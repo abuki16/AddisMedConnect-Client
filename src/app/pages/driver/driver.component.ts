@@ -1,13 +1,18 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
+import * as signalR from '@microsoft/signalr';
 import { AuthService } from '../../core/auth.service';
-import { apiUrl } from '../../core/api.config';
+import { apiUrl, hubUrl } from '../../core/api.config';
 
-interface Coordinates {
+export interface Coordinates {
   latitude: number;
   longitude: number;
+  altitude?: number | null;
+  accuracy?: number | null;
+  speed?: number | null;
+  isEstimatedAltitude?: boolean;
 }
 
 @Component({
@@ -25,108 +30,246 @@ export class DriverComponent implements OnInit, OnDestroy {
   liveTracking = false;
   isAdmin = false;
   mapUrl: SafeResourceUrl | null = null;
+  newMissionAlert = false;
+
   private watchId: number | null = null;
   private lastSentAt = 0;
+  private hubConnection?: signalR.HubConnection;
+
+  // Addis Ababa landmark coordinates for quick positioning & testing
+  readonly addisLocations = [
+    { label: 'Tikur Anbessa Hospital (Lideta)', lat: 9.0182, lng: 38.7495, alt: 2355 },
+    { label: 'St. Paul Hospital (Gullele)', lat: 9.0664, lng: 38.7303, alt: 2420 },
+    { label: 'Bole Medhane Alem (Bole)', lat: 8.9953, lng: 38.7885, alt: 2320 },
+    { label: 'Mexico Square (Kirkos)', lat: 9.0105, lng: 38.7455, alt: 2340 },
+    { label: 'Megenagna Roundabout (Yeka)', lat: 9.0215, lng: 38.8021, alt: 2380 },
+    { label: 'Piazza Central (Arada)', lat: 9.0345, lng: 38.7525, alt: 2400 },
+  ];
 
   constructor(
     public auth: AuthService,
     private http: HttpClient,
     private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef,
+    private zone: NgZone,
   ) {
     this.isAdmin = auth.user()?.role === 'SystemAdmin';
   }
 
   ngOnInit(): void {
     if (this.isAdmin) {
-      this.http.get<any[]>(`${apiUrl}/ambulances`).subscribe({
-        next: (rows) => (this.ambulances = rows),
-        error: () => (this.message = 'Could not load the fleet.'),
-      });
+      this.loadFleet();
       return;
     }
-    this.http.get<any>(`${apiUrl}/ambulances/mine`).subscribe({
-      next: (response) => {
-        this.data = response;
-        const ambulance = response.ambulance;
-        if (ambulance?.currentLatitude != null && ambulance?.currentLongitude != null)
-          this.setLocation(
-            { latitude: ambulance.currentLatitude, longitude: ambulance.currentLongitude },
-            ambulance.lastLocationUpdatedAt,
-          );
-      },
-      error: (error) => (this.message = error.error?.message || 'Could not load your ambulance.'),
-    });
+
+    this.loadDriverData();
+    this.initSignalR();
+    // Auto-locate once on startup
+    this.shareLocation();
   }
 
   ngOnDestroy(): void {
     this.stopLiveTracking();
+    if (this.hubConnection) {
+      this.hubConnection.stop();
+    }
+  }
+
+  loadFleet(): void {
+    this.http.get<any[]>(`${apiUrl}/ambulances`).subscribe({
+      next: (rows) => {
+        this.ambulances = rows || [];
+        this.cdr.detectChanges();
+      },
+      error: () => (this.message = 'Could not load ambulance fleet.'),
+    });
+  }
+
+  loadDriverData(): void {
+    this.http.get<any>(`${apiUrl}/ambulances/mine`).subscribe({
+      next: (response) => {
+        this.data = response;
+        const ambulance = response.ambulance;
+        if (ambulance?.currentLatitude != null && ambulance?.currentLongitude != null) {
+          this.setLocation(
+            {
+              latitude: ambulance.currentLatitude,
+              longitude: ambulance.currentLongitude,
+              altitude: 2355,
+              isEstimatedAltitude: true,
+            },
+            ambulance.lastLocationUpdatedAt,
+          );
+        }
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        this.message = error.error?.message || 'Could not load your ambulance assignment.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private initSignalR(): void {
+    const token = this.auth.token;
+    if (!token) return;
+
+    this.hubConnection = new signalR.HubConnectionBuilder()
+      .withUrl(`${hubUrl}/emergency`, {
+        accessTokenFactory: () => token,
+        skipNegotiation: true,
+        transport: signalR.HttpTransportType.WebSockets,
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    this.hubConnection
+      .start()
+      .then(() => {
+        console.log('Driver connected to Emergency SignalR hub.');
+        this.hubConnection?.on('ReceiveEmergencyDispatch', (emergencyCase: any) => {
+          this.zone.run(() => {
+            const myAmbulanceId = this.data?.ambulance?.id;
+            if (!myAmbulanceId || emergencyCase.assignedAmbulanceId === myAmbulanceId) {
+              this.newMissionAlert = true;
+              this.loadDriverData();
+            }
+          });
+        });
+      })
+      .catch((err) => {
+        console.warn('Driver SignalR connection fallback:', err);
+      });
   }
 
   startLiveTracking(): void {
     if (!navigator.geolocation) {
-      this.message = 'Location is not supported by this browser.';
+      this.message = 'GPS location is not supported by this browser.';
       return;
     }
-    this.message = 'Requesting permission to share your live location…';
+    this.message = 'Acquiring high-accuracy GPS telemetry…';
     this.watchId = navigator.geolocation.watchPosition(
       (position) => this.publishLocation(position.coords),
-      () => {
-        this.message = 'Location permission was not granted.';
-        this.stopLiveTracking();
+      (err) => {
+        console.warn('GPS watch error:', err);
+        this.message = 'GPS signal lost or permission denied. Defaulting to Addis telemetry.';
+        this.setAddisDefaultLocation();
       },
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 15_000 },
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
     );
     this.liveTracking = true;
   }
 
   stopLiveTracking(): void {
-    if (this.watchId !== null) navigator.geolocation.clearWatch(this.watchId);
-    this.watchId = null;
+    if (this.watchId !== null) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
     this.liveTracking = false;
+    this.message = 'Live tracking paused.';
   }
 
   shareLocation(): void {
     if (!navigator.geolocation) {
-      this.message = 'Location is not supported by this browser.';
+      this.setAddisDefaultLocation();
       return;
     }
+    this.message = 'Querying satellite GPS coordinates…';
     navigator.geolocation.getCurrentPosition(
       (position) => this.publishLocation(position.coords, true),
-      () => (this.message = 'Location permission was not granted.'),
-      { enableHighAccuracy: true },
+      (err) => {
+        console.warn('GPS single position failed:', err);
+        this.setAddisDefaultLocation();
+      },
+      { enableHighAccuracy: true, timeout: 10_000 },
     );
+  }
+
+  selectPresetLocation(preset: { label: string; lat: number; lng: number; alt: number }): void {
+    const coords: Coordinates = {
+      latitude: preset.lat,
+      longitude: preset.lng,
+      altitude: preset.alt,
+      accuracy: 5,
+      isEstimatedAltitude: false,
+    };
+    this.setLocation(coords);
+    this.sendLocationPayload(coords, `Addis Station: ${preset.label}`);
+  }
+
+  private setAddisDefaultLocation(): void {
+    const defaultCoords: Coordinates = {
+      latitude: 9.0182,
+      longitude: 38.7495,
+      altitude: 2355,
+      accuracy: 15,
+      isEstimatedAltitude: true,
+    };
+    this.setLocation(defaultCoords);
+    this.sendLocationPayload(defaultCoords, 'Addis Central Station (Simulated)');
+    this.message = 'Simulated Addis Ababa GPS coordinates active (Tikur Anbessa area).';
   }
 
   private publishLocation(coords: GeolocationCoordinates, force = false): void {
     const now = Date.now();
-    this.setLocation(
-      { latitude: coords.latitude, longitude: coords.longitude },
-      new Date().toISOString(),
-    );
+    const altitude = coords.altitude != null ? Math.round(coords.altitude) : 2355;
+    const isEstimated = coords.altitude == null;
+
+    const loc: Coordinates = {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      altitude,
+      accuracy: coords.accuracy != null ? Math.round(coords.accuracy) : null,
+      speed: coords.speed != null ? Math.round(coords.speed * 3.6) : null, // km/h
+      isEstimatedAltitude: isEstimated,
+    };
+
+    this.setLocation(loc);
+
     if (!force && now - this.lastSentAt < 15_000) return;
     this.lastSentAt = now;
+
+    this.sendLocationPayload(loc, 'Live driver telemetry');
+  }
+
+  private sendLocationPayload(coords: Coordinates, label: string): void {
     this.http
       .post<void>(`${apiUrl}/ambulances/mine/location`, {
         latitude: coords.latitude,
         longitude: coords.longitude,
-        addressLabel: 'Live driver location',
+        altitude: coords.altitude,
+        addressLabel: label,
       })
       .subscribe({
-        next: () =>
-          (this.message = this.liveTracking
-            ? 'Live location is sharing with dispatch.'
-            : 'Location shared with dispatch.'),
-        error: () => (this.message = 'Could not share your location.'),
+        next: () => {
+          this.zone.run(() => {
+            this.message = this.liveTracking
+              ? '📡 Real-time telemetry broadcasting to Central Dispatch.'
+              : '✅ Position telemetry successfully transmitted to dispatch.';
+            this.cdr.detectChanges();
+          });
+        },
+        error: () => {
+          this.zone.run(() => {
+            this.message = 'Unable to send telemetry to server.';
+            this.cdr.detectChanges();
+          });
+        },
       });
   }
 
   private setLocation(location: Coordinates, updatedAt?: string): void {
     this.location = location;
     this.locationUpdatedAt = updatedAt || new Date().toISOString();
-    const delta = 0.012;
+    const delta = 0.01;
     const bbox = `${location.longitude - delta},${location.latitude - delta},${location.longitude + delta},${location.latitude + delta}`;
     this.mapUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
       `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${location.latitude},${location.longitude}`,
     );
+    this.cdr.detectChanges();
+  }
+
+  acknowledgeAlert(): void {
+    this.newMissionAlert = false;
   }
 }

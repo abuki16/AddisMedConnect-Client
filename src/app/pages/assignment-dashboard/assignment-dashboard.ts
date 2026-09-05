@@ -6,6 +6,7 @@ import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { ResourceStore, Ambulance, Bed } from '../../Store/resource.store';
 import { BedSignalRService } from '../../services/bed-signalr.service';
+import { apiUrl } from '../../core/api.config';
 
 @Component({
   selector: 'app-assignment-dashboard',
@@ -38,6 +39,7 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
 
   incidentNumber: string | null = null;
   targetHospitalId: string | null = null;
+  targetHospitalName: string = '';
   assignmentForm!: FormGroup;
   isAssigning = false;
   isLoadingCase = true;
@@ -78,6 +80,9 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
     if (this.signalRSub) {
       this.signalRSub.unsubscribe();
     }
+    if (this.targetHospitalId) {
+      this.bedSignalRService.leaveHospitalGroup(this.targetHospitalId);
+    }
     this.bedSignalRService.stopConnection();
   }
 
@@ -91,16 +96,16 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
   fetchCaseDetailsAndBeds(): void {
     this.isLoadingCase = true;
     this.http
-      .get<any>(`http://localhost:5057/api/emergency-cases/${this.incidentNumber}`)
+      .get<any>(`${apiUrl}/emergency-cases/${this.incidentNumber}`)
       .subscribe({
         next: (caseData) => {
           this.isLoadingCase = false;
           const hospitalId = caseData?.targetHospitalId || caseData?.TargetHospitalId;
+          this.targetHospitalName = caseData?.targetHospitalName || caseData?.TargetHospitalName || '';
 
           if (hospitalId) {
             this.targetHospitalId = hospitalId;
-            console.log('🏥 Target Hospital ID found:', this.targetHospitalId);
-            // Calls the dedicated available beds method per hospital
+            this.bedSignalRService.joinHospitalGroup(hospitalId);
             this.resourceStore.loadAvailableBedsForHospital(hospitalId);
           } else {
             this.errorMessage = 'Could not determine the target hospital for this incident.';
@@ -127,13 +132,13 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
 
     this.http
       .post(
-        `http://localhost:5057/api/emergency-cases/${this.incidentNumber}/assign`,
+        `${apiUrl}/emergency-cases/${this.incidentNumber}/assign`,
         this.assignmentForm.value,
       )
       .subscribe({
         next: () => {
           this.isAssigning = false;
-          this.successMessage = `Resources successfully dispatched to Incident #${this.incidentNumber}!`;
+          this.successMessage = `Resources successfully assigned & dispatched to Incident #${this.incidentNumber}! Bed held as RESERVED, Ambulance DISPATCHED.`;
 
           if (this.targetHospitalId) {
             this.resourceStore.loadAvailableBedsForHospital(this.targetHospitalId);
@@ -152,6 +157,6 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
   }
 
   goToNewIntake(): void {
-    this.router.navigate(['/create-case']);
+    this.router.navigate(['/dispatch']);
   }
 }

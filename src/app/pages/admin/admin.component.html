@@ -1,47 +1,113 @@
 <main class="admin">
   <aside>
-    <p class="eyebrow">SYSTEM ADMIN</p>
-    <h2>AddisMedConnect</h2>
+    <div class="brand-box">
+      <p class="eyebrow">SYSTEM ADMIN</p>
+      <h2>AddisMedConnect</h2>
+      <small class="version-tag">Emergency Command v2.0</small>
+    </div>
+
     <nav aria-label="Administration pages">
-      <a routerLink="/admin/users">User management</a
-      ><a routerLink="/dispatch">Dispatcher console</a><a routerLink="/triage">Triage portal</a
-      ><a routerLink="/discharge">Discharge clerk</a
-      ><a routerLink="/driver">Driver &amp; fleet view</a>
+      <a routerLink="/admin" class="nav-link active">📊 Control Center</a>
+      <a routerLink="/admin/beds" class="nav-link">🛏️ Bed Coordination &amp; Registry</a>
+      <a routerLink="/admin/users" class="nav-link">👥 User Access Management</a>
+      <hr class="nav-divider" />
+      <span class="nav-heading">Role Dashboards</span>
+      <a routerLink="/dispatch" class="nav-link">📞 Dispatcher Console</a>
+      <a routerLink="/triage" class="nav-link">🏥 Triage Intake Portal</a>
+      <a routerLink="/discharge" class="nav-link">📋 Patient Discharge &amp; Beds</a>
+      <a routerLink="/driver" class="nav-link">🚑 Ambulance Fleet &amp; Telemetry</a>
     </nav>
-    <button (click)="auth.logout()">Sign out</button>
+
+    <div class="user-footer">
+      <div class="user-badge">
+        <strong>{{ auth.user()?.fullName }}</strong>
+        <small>{{ auth.user()?.role }}</small>
+      </div>
+      <button type="button" class="btn-signout" (click)="auth.logout()">Sign out</button>
+    </div>
   </aside>
-  <section>
+
+  <section class="main-content">
     <header>
       <div>
-        <p class="eyebrow">NETWORK OVERVIEW</p>
-        <h1>Control center</h1>
+        <p class="eyebrow">METROPOLITAN EMERGENCY DISPATCH &amp; BED NETWORK</p>
+        <h1>Addis Ababa Emergency Control Center</h1>
+        <p class="sub-header">Live system telemetry, hospital capacities, and active emergency missions.</p>
       </div>
-      <button (click)="load()">Refresh data</button>
+      <div class="header-buttons">
+        <button type="button" class="btn-refresh" (click)="load()">🔄 Refresh Data</button>
+      </div>
     </header>
+
+    <!-- QUICK ACTIONS -->
+    <div class="quick-actions-bar">
+      <span class="quick-label">⚡ Direct Actions:</span>
+      <a routerLink="/admin/beds" class="quick-btn btn-action-bed">🛏️ Register Hospital Bed</a>
+      <a routerLink="/admin/users" class="quick-btn btn-action-user">👤 Add Staff Account</a>
+      <a routerLink="/dispatch" class="quick-btn btn-action-dispatch">🚨 Register New 907 Incident</a>
+      <a routerLink="/driver" class="quick-btn btn-action-fleet">📡 Inspect Live Fleet GPS</a>
+    </div>
+
+    <!-- METRICS HUD -->
     <div class="metrics">
-      <article>
-        <strong>{{ cases.length }}</strong
-        ><span>Registered cases</span>
+      <article class="metric-card">
+        <span class="metric-icon">📋</span>
+        <div>
+          <strong>{{ cases.length }}</strong>
+          <span>Total Incidents</span>
+        </div>
       </article>
-      <article>
-        <strong>{{ hospitals.length }}</strong
-        ><span>Hospitals</span>
+
+      <article class="metric-card">
+        <span class="metric-icon">🏥</span>
+        <div>
+          <strong>{{ hospitals.length }}</strong>
+          <span>Partner Hospitals</span>
+        </div>
       </article>
-      <article>
-        <strong>{{ ambulances.length }}</strong
-        ><span>Fleet units</span>
+
+      <article class="metric-card">
+        <span class="metric-icon">🚑</span>
+        <div>
+          <strong>{{ ambulances.length }}</strong>
+          <span>Fleet Units</span>
+        </div>
+      </article>
+
+      <article class="metric-card metric-beds">
+        <span class="metric-icon">🛏️</span>
+        <div>
+          <strong>{{ availableBedsCount }} / {{ beds.length }}</strong>
+          <span>Free Beds Available</span>
+        </div>
       </article>
     </div>
+
+    <!-- ALL INCIDENTS OVERVIEW -->
     <div class="panel">
-      <h2>All incidents</h2>
+      <div class="panel-header">
+        <h2>Live Emergency Incidents Directory ({{ cases.length }})</h2>
+        <span class="realtime-badge">🟢 Real-time Network Feed</span>
+      </div>
+
       <div class="case-list">
         <article class="row" *ngFor="let c of cases">
-          <b>{{ c.incidentNumber }}</b
-          ><span>{{ c.patientName }}</span
-          ><span>{{ c.targetHospitalName || 'Hospital pending' }}</span
-          ><em>{{ c.status }}</em>
+          <div class="col-id">
+            <b>{{ c.incidentNumber }}</b>
+            <small>{{ c.createdAt | date:'shortTime' }}</small>
+          </div>
+          <div class="col-patient">
+            <strong>{{ c.patientName }}</strong>
+            <small>{{ c.incidentReason }}</small>
+          </div>
+          <div class="col-hospital">
+            <span>🏥 {{ c.targetHospitalName || 'Hospital Pending' }}</span>
+          </div>
+          <div class="col-status">
+            <span class="status-badge status-{{ c.status?.toLowerCase() }}">{{ c.status }}</span>
+          </div>
         </article>
-        <p *ngIf="!cases.length">No incidents have been registered.</p>
+        <p class="empty-state" *ngIf="!cases.length">No emergency incidents have been registered in the system.</p>
       </div>
     </div>
   </section>

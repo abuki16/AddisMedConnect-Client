@@ -1,9 +1,11 @@
 import { ChangeDetectorRef, Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import * as signalR from '@microsoft/signalr';
 import { AuthService } from '../../core/auth.service';
+import { apiUrl, hubUrl } from '../../core/api.config';
 
 export interface EmergencyCase {
   incidentNumber: string;
@@ -34,7 +36,7 @@ export interface Bed {
 @Component({
   selector: 'app-triage',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './triage.component.html',
   styleUrls: ['./triage.component.scss'],
 })
@@ -53,33 +55,68 @@ export class TriageComponent implements OnInit, OnDestroy {
   successMessage: string = '';
 
   hospitalId: string = '';
+  isAdmin: boolean = false;
+  hospitals: any[] = [];
 
-  private apiUrl = 'http://localhost:5057/api';
-  private hubUrl = 'http://localhost:5057/hubs/emergency';
+  private apiUrl = apiUrl;
+  private hubUrl = `${hubUrl}/emergency`;
   private hubConnection!: signalR.HubConnection;
   private caseRequestId = 0;
 
   constructor(
     private http: HttpClient,
     private ngZone: NgZone,
-    private auth: AuthService,
+    public auth: AuthService,
     private changeDetector: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
-    this.hospitalId = this.auth.user()?.hospitalId || '';
-    if (!this.hospitalId) {
-      this.errorMessage = 'Your account is not assigned to a hospital. Contact an administrator.';
-      return;
+    const user = this.auth.user();
+    this.isAdmin = user?.role === 'SystemAdmin';
+    this.hospitalId = user?.hospitalId || '';
+
+    if (this.isAdmin) {
+      this.http.get<any[]>(`${this.apiUrl}/hospitals`).subscribe({
+        next: (rows) => {
+          this.hospitals = rows || [];
+          if (!this.hospitalId && this.hospitals.length > 0) {
+            this.hospitalId = this.hospitals[0].id;
+          }
+          this.startTriageStation();
+        },
+        error: () => this.startTriageStation(),
+      });
+    } else {
+      if (!this.hospitalId) {
+        this.errorMessage = 'Your account is not assigned to a hospital. Contact an administrator.';
+        return;
+      }
+      this.startTriageStation();
     }
-    console.log('TriageComponent initialized. Loading data and connecting to SignalR...');
+  }
+
+  onHospitalChange(newHospitalId: string): void {
+    if (this.hubConnection && this.hospitalId) {
+      this.hubConnection.invoke('LeaveHospitalGroup', this.hospitalId).catch(() => {});
+    }
+    this.hospitalId = newHospitalId;
+    if (this.hubConnection && this.isRealtimeConnected) {
+      this.hubConnection.invoke('JoinHospitalGroup', this.hospitalId).catch(() => {});
+    }
+    this.selectedCase = null;
+    this.loadData();
+  }
+
+  private startTriageStation(): void {
     this.loadData();
     this.initSignalRConnection();
   }
 
   ngOnDestroy(): void {
     if (this.hubConnection) {
-      this.hubConnection.invoke('LeaveHospitalGroup', this.hospitalId).catch(() => {});
+      if (this.hospitalId) {
+        this.hubConnection.invoke('LeaveHospitalGroup', this.hospitalId).catch(() => {});
+      }
       this.hubConnection.stop();
     }
   }

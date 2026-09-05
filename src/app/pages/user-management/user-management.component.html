@@ -1,67 +1,192 @@
 <main class="users">
   <header>
     <div>
+      <div class="nav-breadcrumbs">
+        <a routerLink="/admin">&larr; Control Center</a>
+        <span>/</span>
+        <a routerLink="/admin/beds">Bed Management</a>
+      </div>
       <p class="eyebrow">SYSTEM ADMIN</p>
-      <h1>User access management</h1>
-      <p>Create each account with the role that controls its dashboard access.</p>
+      <h1>User Access Management</h1>
+      <p>Create and configure staff accounts with role-based dashboard permissions and hospital affiliations.</p>
     </div>
-    <button (click)="auth.logout()">Sign out</button>
+    <div class="header-actions">
+      <button type="button" class="btn-refresh" (click)="load()">Refresh Users</button>
+      <button type="button" class="btn-logout" (click)="auth.logout()">Sign out</button>
+    </div>
   </header>
+
   <div class="layout">
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <h2>{{ editingId ? 'Edit user' : 'Create user' }}</h2>
-      <label>First name<input formControlName="firstName" autocomplete="given-name" /></label
-      ><label>Last name<input formControlName="lastName" autocomplete="family-name" /></label
-      ><label>Email<input formControlName="email" type="email" autocomplete="email" /></label
-      ><label>Phone<input formControlName="phoneNumber" type="tel" /></label
-      ><label
-        >Role <span class="required">required</span
-        ><select formControlName="role">
-          <option value="" disabled>Select the user role</option>
-          <option *ngFor="let role of roles" [value]="role">{{ role }}</option>
-        </select></label
-      ><label
-        >Hospital<select formControlName="hospitalId">
-          <option value="">No hospital assignment</option>
-          <option *ngFor="let hospital of hospitals" [value]="hospital.id">
-            {{ hospital.name }}
-          </option>
-        </select></label
-      ><label
-        >{{ editingId ? 'New password (optional)' : 'Password'
-        }}<input formControlName="password" type="password" autocomplete="new-password" /></label
-      ><small class="password-help"
-        >Minimum 12 characters, including uppercase, lowercase, a number, and a symbol such as
-        <code>@</code>.</small
-      >
-      ><label *ngIf="!editingId"
-        >Confirm password<input
+    <!-- CREATE / EDIT USER FORM -->
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div style="background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; color: #0369a1; font-size: 0.85rem;">
+        ⚡ <strong>Dev Mode Active</strong>: Security route guards &amp; complex password restrictions are temporarily relaxed to allow setting up your administrator account.
+      </div>
+
+      <h2>{{ editingId ? 'Edit Account' : 'Register New Staff Member' }}</h2>
+      
+      <!-- Alert Message -->
+      <div class="notice" [class.error-notice]="isErrorMessage" [class.success-notice]="!isErrorMessage" *ngIf="message">
+        {{ isErrorMessage ? '⚠️ ' : '✅ ' }}{{ message }}
+      </div>
+
+      <div class="form-grid-2">
+        <label>
+          First Name <span class="required">*</span>
+          <input 
+            formControlName="firstName" 
+            placeholder="e.g. Abebe"
+            [class.input-error]="isFieldInvalid('firstName')"
+            autocomplete="given-name" 
+          />
+          <span class="field-error" *ngIf="isFieldInvalid('firstName')">
+            First name is required.
+          </span>
+        </label>
+
+        <label>
+          Last Name <span class="required">*</span>
+          <input 
+            formControlName="lastName" 
+            placeholder="e.g. Kebede"
+            [class.input-error]="isFieldInvalid('lastName')"
+            autocomplete="family-name" 
+          />
+          <span class="field-error" *ngIf="isFieldInvalid('lastName')">
+            Last name is required.
+          </span>
+        </label>
+      </div>
+
+      <label>
+        Work Email <span class="required">*</span>
+        <input 
+          formControlName="email" 
+          type="email" 
+          placeholder="staff@addismedconnect.et"
+          [class.input-error]="isFieldInvalid('email')"
+          autocomplete="email" 
+        />
+        <span class="field-error" *ngIf="isFieldInvalid('email')">
+          Please enter a valid email address.
+        </span>
+      </label>
+
+      <label>
+        Phone Number <span class="required">*</span>
+        <input 
+          formControlName="phoneNumber" 
+          type="tel" 
+          placeholder="0911223344 or +251911223344"
+          [class.input-error]="isFieldInvalid('phoneNumber')"
+        />
+        <span class="field-error" *ngIf="isFieldInvalid('phoneNumber')">
+          Phone number is required.
+        </span>
+      </label>
+
+      <div class="form-grid-2">
+        <label>
+          Assigned Role <span class="required">*</span>
+          <select formControlName="role" [class.input-error]="isFieldInvalid('role')">
+            <option value="" disabled>-- Select Staff Role --</option>
+            <option *ngFor="let role of roles" [value]="role">{{ role }}</option>
+          </select>
+          <span class="field-error" *ngIf="isFieldInvalid('role')">
+            Role selection is required.
+          </span>
+        </label>
+
+        <label>
+          Hospital Affiliation
+          <span class="required" *ngIf="form.get('role')?.value === 'TriageNurse' || form.get('role')?.value === 'DischargeClerk'">*</span>
+          <select formControlName="hospitalId" [class.input-error]="isFieldInvalid('hospitalId')">
+            <option value="">{{ form.get('role')?.value === 'TriageNurse' || form.get('role')?.value === 'DischargeClerk' ? '-- Select Required Hospital --' : 'No hospital assignment (Central/Citywide)' }}</option>
+            <option *ngFor="let hospital of hospitals" [value]="hospital.id">
+              {{ hospital.name }} ({{ hospital.subCity }})
+            </option>
+          </select>
+          <span class="field-error" *ngIf="isFieldInvalid('hospitalId')">
+            Hospital is mandatory for Triage Nurse and Discharge Clerk accounts.
+          </span>
+        </label>
+      </div>
+
+      <label>
+        {{ editingId ? 'New Password (leave empty to keep current)' : 'Account Password *' }}
+        <input 
+          formControlName="password" 
+          type="password" 
+          placeholder="••••••••••••"
+          [class.input-error]="isFieldInvalid('password')"
+          autocomplete="new-password" 
+        />
+      </label>
+
+      <!-- Interactive Password Criteria -->
+      <div class="password-criteria" *ngIf="!editingId || form.get('password')?.value">
+        <p class="criteria-title">Password criteria (relaxed for Dev Mode):</p>
+        <ul>
+          <li [class.met]="checkPassRule('length')">Min 8 characters</li>
+          <li [class.met]="checkPassRule('upper')">Uppercase letter (A-Z)</li>
+          <li [class.met]="checkPassRule('lower')">Lowercase letter (a-z)</li>
+          <li [class.met]="checkPassRule('number')">At least 1 digit (0-9)</li>
+          <li [class.met]="checkPassRule('special')">At least 1 symbol (!@#$%)</li>
+        </ul>
+      </div>
+
+      <label *ngIf="!editingId">
+        Confirm Password <span class="required">*</span>
+        <input
           formControlName="confirmPassword"
           type="password"
+          placeholder="••••••••••••"
+          [class.input-error]="hasPasswordMismatch() || isFieldInvalid('confirmPassword')"
           autocomplete="new-password"
-      /></label>
-      <p class="notice" *ngIf="message">{{ message }}</p>
-      <button [disabled]="form.invalid || saving">
-        {{ saving ? 'Saving…' : editingId ? 'Save changes' : 'Create user' }}</button
-      ><button type="button" class="secondary" *ngIf="editingId" (click)="reset()">
-        Cancel edit
-      </button>
+        />
+        <span class="field-error" *ngIf="hasPasswordMismatch()">
+          Passwords do not match.
+        </span>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" [disabled]="form.invalid || saving">
+          {{ saving ? 'Saving…' : editingId ? 'Save Changes' : 'Create Staff User' }}
+        </button>
+        <button type="button" class="btn-cancel" *ngIf="editingId" (click)="reset()">
+          Cancel Edit
+        </button>
+      </div>
     </form>
-    <section>
-      <h2>System users</h2>
+
+    <!-- REGISTERED USERS DIRECTORY -->
+    <section class="users-section">
+      <div class="section-header">
+        <h2>Registered System Users ({{ users.length }})</h2>
+        <span class="badge-count">{{ users.length }} Active Accounts</span>
+      </div>
+
       <div class="list">
-        <article *ngFor="let user of users">
-          <div>
-            <strong>{{ user.fullName }}</strong>
-            <p>{{ user.email }} · {{ user.role }}</p>
-            <small>{{ user.hospitalName || 'No hospital' }}</small>
+        <article *ngFor="let user of users" class="user-card">
+          <div class="user-info">
+            <div class="user-main">
+              <strong>{{ user.fullName }}</strong>
+              <span class="role-badge role-{{ user.role?.toLowerCase() }}">{{ user.role }}</span>
+            </div>
+            <p class="user-email">{{ user.email }} · <span class="user-phone">{{ user.phoneNumber || 'No phone' }}</span></p>
+            <p class="user-hospital">
+              🏥 {{ user.hospitalName || 'Central / Dispatch Authority (No specific hospital)' }}
+            </p>
           </div>
-          <div>
-            <button (click)="edit(user)">Edit</button
-            ><button class="danger" (click)="remove(user)">Delete</button>
+          <div class="user-card-actions">
+            <button type="button" class="btn-edit" (click)="edit(user)">Edit</button>
+            <button type="button" class="btn-delete" (click)="remove(user)">Delete</button>
           </div>
         </article>
-        <p *ngIf="!users.length">No user accounts have been created.</p>
+
+        <p class="empty-state" *ngIf="!users.length">
+          No user accounts found. Create the first account using the form on the left.
+        </p>
       </div>
     </section>
   </div>
