@@ -13,9 +13,9 @@ import { AuthService } from '../../core/auth.service';
 import { apiUrl } from '../../core/api.config';
 
 // Ethiopian phone validator: e.g. +251911223344 or 0911223344 or 0711223344
-// const ethiopianPhonePattern = /^(?:\+251|0)[79]\d{8}$/; // Temporarily disabled for admin setup
+const ethiopianPhonePattern = /^(?:\+251|0)[79]\d{8}$/;
 // Name validator: at least 2 characters, alphabetic & common punctuation
-// const namePattern = /^[\p{L}'-]{2,}$/u; // Temporarily disabled for admin setup
+const namePattern = /^[\p{L}'-]{2,}$/u;
 
 function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
   const password = control.get('password')?.value;
@@ -39,18 +39,17 @@ export class UserManagementComponent implements OnInit {
   saving = false;
 
   readonly roles = [
-    'SystemAdmin',
     'Dispatcher',
     'AmbulanceDriver',
     'TriageNurse',
     'DischargeClerk',
+    'SystemAdmin',
   ];
 
-  // Relaxed password validators: only required to allow simple passwords for admin creation
   readonly passwordValidators = [
     Validators.required,
-    // Validators.minLength(8),
-    // Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,}$/),
+    Validators.minLength(8),
+    Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,}$/),
   ];
 
   form: FormGroup;
@@ -62,11 +61,11 @@ export class UserManagementComponent implements OnInit {
   ) {
     this.form = fb.group(
       {
-        firstName: ['', [Validators.required]],
-        lastName: ['', [Validators.required]],
+        firstName: ['', [Validators.required, Validators.pattern(namePattern)]],
+        lastName: ['', [Validators.required, Validators.pattern(namePattern)]],
         email: ['', [Validators.required, Validators.email]],
-        phoneNumber: ['', [Validators.required]],
-        role: ['SystemAdmin', Validators.required],
+        phoneNumber: ['', [Validators.required, Validators.pattern(ethiopianPhonePattern)]],
+        role: ['', Validators.required],
         hospitalId: [''],
         password: ['', this.passwordValidators],
         confirmPassword: ['', Validators.required],
@@ -169,7 +168,7 @@ export class UserManagementComponent implements OnInit {
       this.isErrorMessage = false;
     }
     this.form.reset({
-      role: 'SystemAdmin',
+      role: '',
       hospitalId: '',
       firstName: '',
       lastName: '',

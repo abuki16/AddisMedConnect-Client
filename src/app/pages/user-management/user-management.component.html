@@ -19,10 +19,6 @@
   <div class="layout">
     <!-- CREATE / EDIT USER FORM -->
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <div style="background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; color: #0369a1; font-size: 0.85rem;">
-        ⚡ <strong>Dev Mode Active</strong>: Security route guards &amp; complex password restrictions are temporarily relaxed to allow setting up your administrator account.
-      </div>
-
       <h2>{{ editingId ? 'Edit Account' : 'Register New Staff Member' }}</h2>
       
       <!-- Alert Message -->
@@ -40,7 +36,7 @@
             autocomplete="given-name" 
           />
           <span class="field-error" *ngIf="isFieldInvalid('firstName')">
-            First name is required.
+            First name is required (letters only, min 2 chars).
           </span>
         </label>
 
@@ -53,7 +49,7 @@
             autocomplete="family-name" 
           />
           <span class="field-error" *ngIf="isFieldInvalid('lastName')">
-            Last name is required.
+            Last name is required (letters only, min 2 chars).
           </span>
         </label>
       </div>
@@ -73,7 +69,7 @@
       </label>
 
       <label>
-        Phone Number <span class="required">*</span>
+        Ethiopian Phone Number <span class="required">*</span>
         <input 
           formControlName="phoneNumber" 
           type="tel" 
@@ -81,7 +77,7 @@
           [class.input-error]="isFieldInvalid('phoneNumber')"
         />
         <span class="field-error" *ngIf="isFieldInvalid('phoneNumber')">
-          Phone number is required.
+          Must be a valid 10-digit Ethiopian mobile number (09... or 07... or +251...).
         </span>
       </label>
 
@@ -125,7 +121,7 @@
 
       <!-- Interactive Password Criteria -->
       <div class="password-criteria" *ngIf="!editingId || form.get('password')?.value">
-        <p class="criteria-title">Password criteria (relaxed for Dev Mode):</p>
+        <p class="criteria-title">Password must satisfy:</p>
         <ul>
           <li [class.met]="checkPassRule('length')">Min 8 characters</li>
           <li [class.met]="checkPassRule('upper')">Uppercase letter (A-Z)</li>
