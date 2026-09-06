@@ -1,6 +1,13 @@
 /* Global Application Styles & Angular Material Theme */
 @import '@angular/material/prebuilt-themes/azure-blue.css';
 
+/* Universal Box Sizing Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 /* Angular Material Snackbar Enhancements */
 .mat-mdc-snack-bar-container {
   &.snack-success {
