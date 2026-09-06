@@ -15,7 +15,7 @@
           <span class="pulse-dot"></span>
           {{ isRealtimeConnected ? 'Live Sync Active' : 'Connecting...' }}
         </span>
-        <button type="button" class="btn-secondary-link" (click)="auth.logout()">Sign out</button>
+        <button type="button" class="btn-signout" (click)="signOut()">Sign out</button>
       </div>
     </div>
   </div>
@@ -44,7 +44,7 @@
         <span class="metrics-value">{{ pendingTriageCount }} Cases Pending in Live Queue</span>
       </div>
     </div>
-    <button class="btn-secondary-link" (click)="loadData()">🔄 Refresh Queue</button>
+    <button type="button" class="btn-refresh" (click)="loadData()">🔄 Refresh Queue</button>
   </div>
 
   <!-- MAIN WORKSPACE -->
@@ -69,21 +69,29 @@
                 <span class="incident-tag">{{ c.incidentNumber }}</span>
               </div>
               <p class="queue-reason">{{ c.incidentReason }}</p>
+              <div class="queue-resources-tags">
+                <span class="badge-tag bed-tag" *ngIf="c.assignedBedNumber || c.bedNumber">
+                  🛏️ Bed #{{ c.assignedBedNumber || c.bedNumber }}
+                </span>
+                <span class="badge-tag amb-tag" *ngIf="c.ambulancePlateNumber">
+                  🚑 {{ c.ambulancePlateNumber }}
+                </span>
+              </div>
               <div class="queue-meta">
                 <span>📍 {{ c.targetHospitalName || 'Hospital Routing' }}</span>
                 <small>{{ c.createdAt | date: 'shortTime' }}</small>
               </div>
             </div>
 
-            <!-- Action Button to Approve & Occupy Bed -->
+            <!-- Action Button to Select & Complete Triage -->
             <div class="queue-item-action">
               <button
                 type="button"
                 class="btn-approve-sm"
-                (click)="quickApprove(c, $event)"
-                title="Approve Triage & Occupy Bed"
+                (click)="startTriageFor(c, $event)"
+                title="Triage Assessment & Approval"
               >
-                ✔ Approve
+                🩺 Triage &amp; Approve
               </button>
             </div>
           </div>
@@ -112,31 +120,198 @@
           <p><strong>Complaint:</strong> {{ selectedCase.incidentReason }}</p>
         </div>
 
-        <form (ngSubmit)="submitTriage()">
-          <div class="form-group">
-            <label>Triage Priority Score *</label>
-            <select [(ngModel)]="assessmentPriority" name="priority" required>
-              <option value="Red">Red — Immediate / Resuscitation</option>
-              <option value="Yellow">Yellow — Urgent</option>
-              <option value="Green">Green — Standard / Non-Urgent</option>
-            </select>
+        <form (ngSubmit)="submitTriage()" class="triage-assessment-form">
+          <!-- 1. Triage Priority Selection -->
+          <div class="form-section-block">
+            <label class="section-title-label">
+              1. Triage Priority Category *
+              <span class="section-subtitle">(Select from clinical acuity categories)</span>
+            </label>
+            <div class="priority-cards-grid">
+              <div
+                type="button"
+                class="priority-card card-red"
+                [class.selected]="assessmentPriority === 'Red'"
+                (click)="setPriority('Red')"
+              >
+                <div class="priority-badge-title">
+                  <span class="prio-dot red-dot"></span>
+                  <strong>RED — Immediate (Priority 2)</strong>
+                  <span class="prio-check" *ngIf="assessmentPriority === 'Red'">✓</span>
+                </div>
+                <p>Resuscitation / Category 1: Life-threatening emergency, immediate clinical intervention required.</p>
+              </div>
+
+              <div
+                type="button"
+                class="priority-card card-yellow"
+                [class.selected]="assessmentPriority === 'Yellow'"
+                (click)="setPriority('Yellow')"
+              >
+                <div class="priority-badge-title">
+                  <span class="prio-dot yellow-dot"></span>
+                  <strong>YELLOW — Urgent (Priority 1)</strong>
+                  <span class="prio-check" *ngIf="assessmentPriority === 'Yellow'">✓</span>
+                </div>
+                <p>Urgent / Category 2: Serious condition requiring rapid assessment and stabilization.</p>
+              </div>
+
+              <div
+                type="button"
+                class="priority-card card-green"
+                [class.selected]="assessmentPriority === 'Green'"
+                (click)="setPriority('Green')"
+              >
+                <div class="priority-badge-title">
+                  <span class="prio-dot green-dot"></span>
+                  <strong>GREEN — Delayed (Priority 0)</strong>
+                  <span class="prio-check" *ngIf="assessmentPriority === 'Green'">✓</span>
+                </div>
+                <p>Standard / Category 3: Ambulatory or non-urgent minor injury, safely monitored.</p>
+              </div>
+            </div>
           </div>
 
+          <!-- 2. Ambulance Transport & Fleet Release -->
+          <div class="form-section-block">
+            <label class="section-title-label">2. Ambulance Transport &amp; Fleet Release</label>
+            <div class="ambulance-card">
+              <div class="amb-info-row">
+                <span class="amb-icon">🚑</span>
+                <div class="amb-text">
+                  <strong *ngIf="selectedCase.ambulancePlateNumber">
+                    Assigned Ambulance: {{ selectedCase.ambulancePlateNumber }}
+                  </strong>
+                  <strong *ngIf="!selectedCase.ambulancePlateNumber" class="text-muted">
+                    No Ambulance Unit Assigned (Direct Arrival / Private Transport)
+                  </strong>
+                  <small *ngIf="selectedCase.ambulancePlateNumber">
+                    {{ releaseAmbulance ? 'Ambulance will be marked Available in the citywide emergency fleet.' : 'Ambulance will remain held for transfer/referral.' }}
+                  </small>
+                </div>
+              </div>
+              <label class="checkbox-container" *ngIf="selectedCase.ambulancePlateNumber || selectedCase.assignedAmbulanceId">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="releaseAmbulance"
+                  name="releaseAmbulance"
+                />
+                <span class="checkbox-label-text">
+                  <strong>Free &amp; release ambulance</strong> to active citywide fleet upon triage completion
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 3. Clinical Intake & Vital Signs Grid -->
+          <div class="form-section-block">
+            <label class="section-title-label">3. Clinical Intake &amp; Vital Signs (Optional)</label>
+            <div class="vitals-input-grid">
+              <div class="vital-item">
+                <label>Blood Pressure (BP)</label>
+                <input
+                  type="text"
+                  [(ngModel)]="vitals.bloodPressure"
+                  name="bloodPressure"
+                  placeholder="e.g. 120/80"
+                />
+              </div>
+
+              <div class="vital-item">
+                <label>Heart Rate (HR)</label>
+                <input
+                  type="text"
+                  [(ngModel)]="vitals.heartRate"
+                  name="heartRate"
+                  placeholder="e.g. 84 bpm"
+                />
+              </div>
+
+              <div class="vital-item">
+                <label>Resp. Rate (RR)</label>
+                <input
+                  type="text"
+                  [(ngModel)]="vitals.respiratoryRate"
+                  name="respiratoryRate"
+                  placeholder="e.g. 18 /min"
+                />
+              </div>
+
+              <div class="vital-item">
+                <label>SpO2 Saturation</label>
+                <input
+                  type="text"
+                  [(ngModel)]="vitals.spO2"
+                  name="spO2"
+                  placeholder="e.g. 98%"
+                />
+              </div>
+
+              <div class="vital-item">
+                <label>Temperature (°C)</label>
+                <input
+                  type="text"
+                  [(ngModel)]="vitals.temperature"
+                  name="temperature"
+                  placeholder="e.g. 36.8"
+                />
+              </div>
+
+              <div class="vital-item">
+                <label>Consciousness (AVPU)</label>
+                <select [(ngModel)]="vitals.consciousness" name="consciousness">
+                  <option value="Alert">Alert (A)</option>
+                  <option value="Voice">Responsive to Voice (V)</option>
+                  <option value="Pain">Responsive to Pain (P)</option>
+                  <option value="Unresponsive">Unresponsive (U)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Clinical Triage Notes -->
           <div class="form-group">
-            <label>Confirm / Assign Hospital Bed</label>
+            <label class="section-title-label">4. Triage Nurse Clinical Notes</label>
+            <textarea
+              [(ngModel)]="triageNotes"
+              name="triageNotes"
+              rows="3"
+              placeholder="Clinical observations, allergies, airway assessment, or initial nursing interventions..."
+            ></textarea>
+          </div>
+
+          <!-- 5. Bed Assignment Confirmation -->
+          <div class="form-group">
+            <label class="section-title-label">5. Confirm &amp; Occupy Hospital Bed *</label>
+            <div class="bed-status-transition-banner" *ngIf="selectedCase.assignedBedNumber || selectedCase.bedNumber">
+              <span class="bed-badge">🛏️ Assigned Bed: <strong>#{{ selectedCase.assignedBedNumber || selectedCase.bedNumber }}</strong></span>
+              <span class="transition-arrow">&rarr;</span>
+              <span class="status-occupied-badge">Status transitions to: <strong>OCCUPIED</strong></span>
+            </div>
             <select [(ngModel)]="confirmedBedId" name="confirmedBedId">
-              <option value="">-- Keep Current or Select Available Bed --</option>
-              <option *ngFor="let b of availableBeds" [value]="b.id">
-                Bed #{{ b.bedNumber }} ({{ b.wardType }})
+              <option [value]="selectedCase.assignedBedId || ''">
+                -- Keep Current Bed #{{ selectedCase.assignedBedNumber || selectedCase.bedNumber || 'Assigned' }} (Occupy on Approval) --
               </option>
+              <ng-container *ngFor="let b of availableBeds">
+                <option *ngIf="b.id !== selectedCase.assignedBedId" [value]="b.id">
+                  Switch to Bed #{{ b.bedNumber }} ({{ b.wardType }} Ward)
+                </option>
+              </ng-container>
             </select>
           </div>
 
+          <!-- Action Button -->
           <div class="form-actions">
-            <button type="submit" class="btn-primary">Confirm Triage & Occupy Bed 🚀</button>
+            <button
+              type="submit"
+              class="btn-primary btn-submit-triage"
+              [disabled]="isSubmitting"
+            >
+              {{ isSubmitting ? 'Processing Triage Intake...' : 'Approve Triage & Occupy Bed 🩺' }}
+            </button>
             <p class="info-text">
-              Completing triage occupies the selected bed and releases the assigned ambulance back
-              to the available fleet.
+              Approving triage records the priority, marks patient as Admitted, transitions the assigned bed to <strong>Occupied</strong>,
+              and frees the ambulance back to the citywide fleet.
             </p>
           </div>
         </form>

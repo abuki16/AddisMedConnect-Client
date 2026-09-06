@@ -15,6 +15,10 @@ export interface Hospital {
   SubCity?: string;
   address?: string;
   Address?: string;
+  latitude?: number;
+  Latitude?: number;
+  longitude?: number;
+  Longitude?: number;
   contactPhone?: string;
   ContactPhone?: string;
   totalBeds?: number;
@@ -32,6 +36,14 @@ export interface Ambulance {
   DriverName?: string;
   phoneNumber?: string;
   PhoneNumber?: string;
+  isAvailable?: boolean;
+  IsAvailable?: boolean;
+  driverUserId?: string;
+  DriverUserId?: string;
+  driverUser?: any;
+  currentLatitude?: number;
+  currentLongitude?: number;
+  lastLocationUpdatedAt?: string;
 }
 
 export interface Bed {
@@ -83,6 +95,7 @@ const initialState: ResourceState = {
 const API_BASE = apiUrl;
 
 export const ResourceStore = signalStore(
+  { providedIn: 'root' },
   withState(initialState),
   withMethods((store, http = inject(HttpClient)) => ({
     // Load Hospitals

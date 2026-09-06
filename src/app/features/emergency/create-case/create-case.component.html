@@ -1,10 +1,22 @@
 <div class="dispatch-container">
   <div class="dispatch-header">
     <div>
+      <span class="eyebrow">CENTRAL EMERGENCY DISPATCH</span>
       <h2>AddisMedConnect</h2>
-      <p>Emergency Dispatch & Resource Coordination Center</p>
+      <p>Emergency Dispatch &amp; Resource Coordination Center</p>
     </div>
-    <button type="button" class="btn-secondary-link" (click)="auth.logout()">Sign out</button>
+    <div class="header-actions">
+      <div class="user-pill" *ngIf="auth.user() as u">
+        <span class="role-badge">{{ u.role }}</span>
+        <span class="user-name">{{ u.fullName }}</span>
+      </div>
+      <button type="button" class="btn-refresh" (click)="refresh()">
+        🔄 Refresh
+      </button>
+      <button type="button" class="btn-signout" (click)="signOut()">
+        Sign out
+      </button>
+    </div>
   </div>
 
   <!-- LIVE METRICS BAR: Pending Triage Count -->
@@ -19,31 +31,60 @@
     <span class="metrics-badge">Live Queue</span>
   </div>
 
-  <!-- SUCCESS BANNER / POST-CREATION VIEW -->
+  <!-- SUCCESS BANNER / POST-REGISTRATION VIEW -->
   <div class="success-card" *ngIf="createdIncidentNumber">
     <div class="success-content">
+      <div class="success-icon-badge">✅</div>
       <h3>🎉 Emergency Case Successfully Registered!</h3>
       <p class="success-message-text">
-        The case information has been saved successfully in the system.
-      </p>
-      <p>
-        <strong>Generated Incident Number:</strong>
-        <span class="incident-badge">{{ createdIncidentNumber }}</span>
+        The incident has been logged into the live central emergency queue.
       </p>
 
-      <!-- TWO ACTION BUTTONS SECTION -->
+      <div class="registered-incident-pill">
+        <span class="pill-label">INCIDENT REFERENCE</span>
+        <strong class="incident-code">{{ createdIncidentNumber }}</strong>
+      </div>
+
+      <!-- Quick summary of registered case -->
+      <div class="case-summary-box" *ngIf="createdCaseDetails">
+        <div class="summary-row">
+          <span class="summary-label">Patient:</span>
+          <strong>{{ createdCaseDetails.patientName || 'Unknown Patient' }}</strong>
+        </div>
+        <div class="summary-row" *ngIf="createdCaseDetails.callerName">
+          <span class="summary-label">Caller:</span>
+          <span>{{ createdCaseDetails.callerName }} ({{ createdCaseDetails.callerPhone }})</span>
+        </div>
+        <div class="summary-row" *ngIf="createdCaseDetails.targetHospitalName">
+          <span class="summary-label">Target Hospital:</span>
+          <span>{{ createdCaseDetails.targetHospitalName }}</span>
+        </div>
+        <div class="summary-row" *ngIf="createdCaseDetails.pickupAddress">
+          <span class="summary-label">Pickup Location:</span>
+          <span>{{ createdCaseDetails.pickupAddress }}</span>
+        </div>
+        <div class="summary-row" *ngIf="createdCaseDetails.incidentReason">
+          <span class="summary-label">Complaint:</span>
+          <span>{{ createdCaseDetails.incidentReason }}</span>
+        </div>
+      </div>
+
+      <!-- ACTION BUTTONS: Appears after registration to navigate to assignment page -->
       <div class="success-actions-group">
-        <!-- Button 1: Navigate to Assignment Page to assign bed & ambulance -->
         <button
-          class="btn-success-custom"
-          [routerLink]="['/assign-resources', createdIncidentNumber]"
+          type="button"
+          class="btn-navigate-assignment"
+          (click)="goToAssignmentPage()"
         >
-          🚀 Go to Assignment Page (Assign Bed & Ambulance)
+          🚀 Proceed to Resource Assignment (Assign Bed &amp; Ambulance) &rarr;
         </button>
 
-        <!-- Button 2: Register another intake -->
-        <button type="button" class="btn-secondary-link" (click)="resetIntake()">
-          ➕ Register Another Intake Case
+        <button
+          type="button"
+          class="btn-register-another"
+          (click)="resetIntake()"
+        >
+          ➕ Register Another Emergency Case
         </button>
       </div>
     </div>
@@ -136,7 +177,7 @@
         >
           <strong>{{ hospital.hospitalName }}</strong
           ><span
-            >{{ hospital.distanceKm | number: '1.1-1' }} km · {{ hospital.availableBeds }} beds
+            >{{ (hospital.distanceKm ?? 0) | number: '1.1-1' }} km · {{ hospital.availableBeds }} beds
             free</span
           ><small>{{ hospital.recommendation }}</small>
         </button>
@@ -185,7 +226,7 @@
         <select formControlName="targetHospitalId">
           <option value="">-- Select Destination Hospital --</option>
           <option *ngFor="let h of hospitals" [value]="h.id || h.Id">
-            {{ h.name || h.Name }} (Available Beds: {{ h.availableBeds ?? h.AvailableBeds }})
+            {{ h.name || h.Name }} (Available Beds: {{ h.availableBeds ?? h.AvailableBeds ?? 0 }})
           </option>
         </select>
         <div

@@ -1,4 +1,10 @@
-import { Component, OnInit, inject } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  inject,
+  ChangeDetectorRef,
+  NgZone,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -6,7 +12,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { AuthService } from '../../../core/auth.service';
 import { ToastService } from '../../../core/toast.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -40,13 +46,15 @@ interface HospitalRecommendation {
 @Component({
   selector: 'app-create-case',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './create-case.component.html',
   styleUrls: ['./create-case.component.scss'],
 })
 export class CreateCaseComponent implements OnInit {
   readonly resourceStore = inject(ResourceStore);
   private toast = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
 
   get hospitals(): Hospital[] {
     return this.resourceStore.hospitals();
@@ -57,12 +65,8 @@ export class CreateCaseComponent implements OnInit {
   }
 
   intakeForm!: FormGroup;
-  assignmentForm!: FormGroup;
-  filteredAvailableBeds: Bed[] = [];
-
   isSubmitting = false;
   isCheckingCapacity = false;
-  isAssigning = false;
 
   pendingTriageCount: number = 0;
 
@@ -149,10 +153,16 @@ export class CreateCaseComponent implements OnInit {
       .get<{ count: number }>(`${apiUrl}/emergency-cases/pending-triage-count`)
       .subscribe({
         next: (res) => {
-          this.pendingTriageCount = res.count;
+          this.ngZone.run(() => {
+            this.pendingTriageCount = res.count;
+            this.cdr.detectChanges();
+          });
         },
         error: () => {
-          this.pendingTriageCount = 0;
+          this.ngZone.run(() => {
+            this.pendingTriageCount = 0;
+            this.cdr.detectChanges();
+          });
         },
       });
   }
@@ -179,11 +189,6 @@ export class CreateCaseComponent implements OnInit {
       pickupLongitude: [null],
       wardType: ['Emergency', Validators.required],
     });
-
-    this.assignmentForm = this.fb.group({
-      bedId: ['', Validators.required],
-      ambulanceId: ['', Validators.required],
-    });
   }
 
   verifyHospitalCapacity(hospitalId: string): void {
@@ -195,16 +200,23 @@ export class CreateCaseComponent implements OnInit {
       .set('lng', '38.7400');
 
     this.isCheckingCapacity = true;
+    this.cdr.markForCheck();
     this.http
       .get<CapacityResult>(`${apiUrl}/emergency-cases/check-capacity`, { params })
       .subscribe({
         next: (result) => {
-          this.isCheckingCapacity = false;
-          this.capacityWarning = result;
+          this.ngZone.run(() => {
+            this.isCheckingCapacity = false;
+            this.capacityWarning = result;
+            this.cdr.detectChanges();
+          });
         },
         error: (err) => {
-          this.isCheckingCapacity = false;
-          this.capacityWarning = null;
+          this.ngZone.run(() => {
+            this.isCheckingCapacity = false;
+            this.capacityWarning = null;
+            this.cdr.detectChanges();
+          });
           console.error('Capacity check failed:', err);
         },
       });
@@ -273,11 +285,19 @@ export class CreateCaseComponent implements OnInit {
       )
       .subscribe({
         next: (rows) => {
-          this.recommendations = rows;
-          const best = rows.find((row) => row.hasRequestedWardCapacity);
-          if (best && !this.intakeForm.value.targetHospitalId) this.selectRecommendedHospital(best);
+          this.ngZone.run(() => {
+            this.recommendations = rows;
+            const best = rows.find((row) => row.hasRequestedWardCapacity);
+            if (best && !this.intakeForm.value.targetHospitalId) this.selectRecommendedHospital(best);
+            this.cdr.detectChanges();
+          });
         },
-        error: () => (this.recommendations = []),
+        error: () => {
+          this.ngZone.run(() => {
+            this.recommendations = [];
+            this.cdr.detectChanges();
+          });
+        },
       });
   }
 
@@ -320,30 +340,49 @@ export class CreateCaseComponent implements OnInit {
     }
 
     this.isSubmitting = true;
+    this.cdr.markForCheck();
 
     const formValues = this.intakeForm.getRawValue();
     delete formValues.isUnknownPatient;
 
     this.http.post(`${apiUrl}/emergency-cases`, formValues).subscribe({
       next: (response: any) => {
-        this.isSubmitting = false;
-        this.createdIncidentNumber =
-          response?.incidentNumber || response?.IncidentNumber;
-        this.createdCaseDetails = response;
-        this.pendingTriageCount++;
-        this.toast.success(
-          `Emergency case registered: Incident #${this.createdIncidentNumber}`,
-        );
+        this.ngZone.run(() => {
+          this.isSubmitting = false;
+          const incidentNumber =
+            response?.incidentNumber || response?.IncidentNumber;
+          this.createdIncidentNumber = incidentNumber;
+          this.createdCaseDetails = response;
+          this.pendingTriageCount++;
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+          this.cdr.detectChanges();
+          this.toast.success(
+            `Emergency case registered successfully! Incident #${incidentNumber}`,
+          );
+        });
       },
       error: (err) => {
-        this.isSubmitting = false;
-        const msg =
-          err.error?.message ||
-          err.error?.title ||
-          'Failed to register emergency case.';
-        this.toast.error(msg);
+        this.ngZone.run(() => {
+          this.isSubmitting = false;
+          this.cdr.detectChanges();
+          const msg =
+            err.error?.message ||
+            err.error?.title ||
+            'Failed to register emergency case.';
+          this.toast.error(msg);
+        });
       },
     });
+  }
+
+  goToAssignmentPage(): void {
+    if (this.createdIncidentNumber) {
+      this.router.navigate(['/assign-resources', this.createdIncidentNumber]);
+    } else {
+      this.toast.warning('No active incident number found for assignment.');
+    }
   }
 
   resetIntake(): void {
@@ -354,6 +393,21 @@ export class CreateCaseComponent implements OnInit {
       wardType: 'Emergency',
       isUnknownPatient: false,
     });
-    this.assignmentForm.reset();
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    this.cdr.detectChanges();
+    this.toast.info('Form cleared. Ready for new emergency intake registration.');
+  }
+
+  signOut(): void {
+    this.auth.logout();
+    this.toast.info('You have been signed out.');
+  }
+
+  refresh(): void {
+    this.resourceStore.loadHospitals();
+    this.loadPendingTriageCount();
+    this.toast.info('Dispatch live metrics refreshed.');
   }
 }

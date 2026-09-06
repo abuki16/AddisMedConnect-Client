@@ -1,0 +1,256 @@
+<main class="ambulance-admin">
+  <header>
+    <div>
+      <div class="nav-breadcrumbs">
+        <a routerLink="/admin">&larr; Control Center</a>
+        <span>/</span>
+        <a routerLink="/admin/hospitals">Hospital Network</a>
+        <span>/</span>
+        <a routerLink="/admin/beds">Bed Coordination</a>
+        <span>/</span>
+        <a routerLink="/admin/users">User Access</a>
+      </div>
+      <p class="eyebrow">SYSTEM ADMIN · FLEET INVENTORY</p>
+      <h1>Ambulance Fleet Coordination &amp; Maintenance</h1>
+      <p>Register new emergency fleet vehicles, assign certified drivers, monitor operational readiness, and decommission damaged units across Addis Ababa.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn-add-ambulance" (click)="openCreateModal()">
+        ➕ Register New Ambulance
+      </button>
+      <button type="button" class="btn-refresh" (click)="loadAmbulances()">
+        🔄 Refresh Fleet
+      </button>
+      <button type="button" class="btn-signout" (click)="auth.logout()">
+        Sign out
+      </button>
+    </div>
+  </header>
+
+  <!-- STATS CARDS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Total Fleet Units</span>
+      <span class="stat-value">{{ ambulances.length }}</span>
+      <small>Registered Emergency Vehicles</small>
+    </div>
+    <div class="stat-card stat-available">
+      <span class="stat-label">🟢 Ready &amp; Available</span>
+      <span class="stat-value">{{ availableCount }}</span>
+      <small>Available for central dispatch</small>
+    </div>
+    <div class="stat-card stat-unavailable">
+      <span class="stat-label">🟡 Dispatched / Out of Service</span>
+      <span class="stat-value">{{ unavailableCount }}</span>
+      <small>On mission or undergoing repair</small>
+    </div>
+  </div>
+
+  <!-- FLEET INVENTORY PANEL -->
+  <section class="panel">
+    <!-- FILTERS TOOLBAR -->
+    <div class="filters-toolbar">
+      <div class="filter-group search-group">
+        <label>Search Fleet:</label>
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          placeholder="Search by plate, driver, or phone..."
+        />
+      </div>
+
+      <div class="filter-group">
+        <label>Status:</label>
+        <select [(ngModel)]="statusFilter">
+          <option value="">All Statuses ({{ ambulances.length }})</option>
+          <option value="available">🟢 Available &amp; Ready</option>
+          <option value="unavailable">🟡 Dispatched / Maintenance</option>
+        </select>
+      </div>
+
+      <div class="count-badge">
+        Showing {{ filteredAmbulances.length }} of {{ ambulances.length }} vehicles
+      </div>
+    </div>
+
+    <div class="empty-state" *ngIf="loading">
+      <p>Loading fleet registry…</p>
+    </div>
+
+    <!-- AMBULANCES TABLE -->
+    <div class="table-responsive" *ngIf="!loading && filteredAmbulances.length">
+      <table class="fleet-table">
+        <thead>
+          <tr>
+            <th>Plate Number</th>
+            <th>Driver &amp; Account</th>
+            <th>Contact Phone</th>
+            <th>Operational Status</th>
+            <th>GPS Coordinates</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let amb of filteredAmbulances">
+            <td>
+              <strong class="plate-code">🚑 {{ amb.plateNumber }}</strong>
+            </td>
+            <td>
+              <div class="driver-info">
+                <strong>{{ amb.driverName || amb.driverUser?.fullName || 'Unassigned Driver' }}</strong>
+                <small *ngIf="amb.driverUser" class="driver-account-badge">
+                  User: {{ amb.driverUser.email }}
+                </small>
+              </div>
+            </td>
+            <td>
+              <span>{{ amb.phoneNumber || amb.driverUser?.phoneNumber || '—' }}</span>
+            </td>
+            <td>
+              <span
+                class="status-badge"
+                [ngClass]="amb.isAvailable ? 'badge-available' : 'badge-maintenance'"
+              >
+                {{ amb.isAvailable ? '🟢 Available (Ready)' : '🟡 Out of Service / Dispatched' }}
+              </span>
+            </td>
+            <td>
+              <span *ngIf="amb.currentLatitude && amb.currentLongitude" class="coords-badge">
+                📍 {{ amb.currentLatitude | number:'1.4-4' }}, {{ amb.currentLongitude | number:'1.4-4' }}
+              </span>
+              <span *ngIf="!amb.currentLatitude" class="text-muted">—</span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button
+                  type="button"
+                  class="btn-action-edit"
+                  (click)="openEditModal(amb)"
+                  title="Edit Ambulance Details"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  type="button"
+                  class="btn-action-status"
+                  [ngClass]="amb.isAvailable ? 'btn-maint' : 'btn-avail'"
+                  (click)="toggleStatus(amb)"
+                  [title]="amb.isAvailable ? 'Take Out of Service for Maintenance' : 'Mark Available for Missions'"
+                >
+                  {{ amb.isAvailable ? 'Mark Inactive' : 'Mark Ready' }}
+                </button>
+                <button
+                  type="button"
+                  class="btn-action-delete"
+                  (click)="deleteAmbulance(amb)"
+                  title="Decommission & Delete Ambulance"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="empty-state" *ngIf="!loading && !filteredAmbulances.length">
+      <p>No ambulances found matching your search. Click "Register New Ambulance" above to add one.</p>
+    </div>
+  </section>
+
+  <!-- CREATE / EDIT AMBULANCE MODAL -->
+  <div class="modal-backdrop" *ngIf="showModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>{{ editingAmbulance ? '✏️ Edit Ambulance Vehicle' : '🚑 Register New Ambulance Vehicle' }}</h3>
+        <button type="button" class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <form [formGroup]="ambulanceForm" (ngSubmit)="saveAmbulance()">
+        <div class="modal-body">
+          <label>
+            Vehicle Plate Number <span class="required">*</span>
+            <input
+              formControlName="plateNumber"
+              placeholder="e.g. AA-3-12345 or ET-MED-09"
+            />
+            <small class="hint">Government registration or emergency fleet license plate number.</small>
+          </label>
+
+          <label>
+            Link Driver Account (Optional)
+            <select
+              formControlName="driverUserId"
+              (ngModelChange)="onDriverUserSelected($event)"
+            >
+              <option value="">-- No Account Linked (Manual Driver Entry) --</option>
+              <option *ngFor="let u of driverUsers" [value]="u.id">
+                {{ u.fullName }} ({{ u.email }})
+              </option>
+            </select>
+          </label>
+
+          <div class="form-grid-2">
+            <label>
+              Driver Full Name
+              <input
+                formControlName="driverName"
+                placeholder="e.g. Dawit Tadesse"
+              />
+            </label>
+
+            <label>
+              Driver Contact Phone
+              <input
+                formControlName="phoneNumber"
+                placeholder="e.g. 0911223344"
+              />
+            </label>
+          </div>
+
+          <div class="form-grid-2">
+            <label>
+              Initial Latitude
+              <input
+                type="number"
+                step="0.0001"
+                formControlName="currentLatitude"
+                placeholder="9.0300"
+              />
+            </label>
+
+            <label>
+              Initial Longitude
+              <input
+                type="number"
+                step="0.0001"
+                formControlName="currentLongitude"
+                placeholder="38.7400"
+              />
+            </label>
+          </div>
+
+          <label>
+            Operational Status <span class="required">*</span>
+            <select formControlName="isAvailable">
+              <option [ngValue]="true">🟢 Available (Ready for Immediate Emergency Dispatch)</option>
+              <option [ngValue]="false">🟡 Out of Service / In Maintenance / Busy</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Cancel</button>
+          <button
+            type="submit"
+            class="btn-save"
+            [disabled]="ambulanceForm.invalid || saving"
+          >
+            {{ saving ? 'Saving…' : (editingAmbulance ? 'Save Changes' : 'Register Ambulance') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>

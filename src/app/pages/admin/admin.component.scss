@@ -196,11 +196,25 @@ header {
     border-radius: 6px;
     transition: all 0.2s;
 
+    &.btn-action-hosp {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+      &:hover { background: #0284c7; color: #fff; }
+    }
+
     &.btn-action-bed {
       background: #e6f6f5;
       color: #007c75;
       border: 1px solid #a6e3dd;
       &:hover { background: #007c75; color: #fff; }
+    }
+
+    &.btn-action-amb {
+      background: #fef9c3;
+      color: #854d0e;
+      border: 1px solid #fef08a;
+      &:hover { background: #ca8a04; color: #fff; }
     }
 
     &.btn-action-user {

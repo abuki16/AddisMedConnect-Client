@@ -4,6 +4,10 @@
       <div class="nav-breadcrumbs">
         <a routerLink="/admin">&larr; Control Center</a>
         <span>/</span>
+        <a routerLink="/admin/hospitals">Hospital Network</a>
+        <span>/</span>
+        <a routerLink="/admin/ambulances">Ambulance Fleet</a>
+        <span>/</span>
         <a routerLink="/admin/users">User Access</a>
       </div>
       <p class="eyebrow">SYSTEM ADMIN · RESOURCE REGISTRY</p>
@@ -16,6 +20,9 @@
       </button>
       <button type="button" class="btn-refresh" (click)="loadBeds()">
         🔄 Refresh
+      </button>
+      <button type="button" class="btn-signout" (click)="auth.logout()">
+        Sign out
       </button>
     </div>
   </header>
@@ -127,21 +134,37 @@
             </td>
             <td>
               <div class="action-buttons">
+                <button
+                  type="button"
+                  class="btn-action-edit"
+                  (click)="openEditModal(bed)"
+                  title="Edit Bed Details"
+                >
+                  ✏️ Edit
+                </button>
                 <button 
                   type="button" 
                   class="btn-action-free" 
                   *ngIf="getStatusLabel(bed.status) !== 'Available'"
                   (click)="updateStatus(bed, 0)"
                   title="Make Available">
-                  Free Bed
+                  Free
                 </button>
                 <button 
                   type="button" 
                   class="btn-action-maint" 
                   *ngIf="getStatusLabel(bed.status) !== 'Maintenance'"
                   (click)="updateStatus(bed, 3)"
-                  title="Mark for Maintenance">
+                  title="Mark for Maintenance / Blocked">
                   Block
+                </button>
+                <button
+                  type="button"
+                  class="btn-action-delete"
+                  (click)="deleteBed(bed)"
+                  title="Delete Bed from Inventory"
+                >
+                  🗑️
                 </button>
               </div>
             </td>
@@ -155,15 +178,15 @@
     </div>
   </section>
 
-  <!-- CREATE BED MODAL -->
+  <!-- CREATE / EDIT BED MODAL -->
   <div class="modal-backdrop" *ngIf="showCreateModal">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3>🛏️ Register New Hospital Bed</h3>
+        <h3>{{ editingBed ? '✏️ Edit Hospital Bed' : '🛏️ Register New Hospital Bed' }}</h3>
         <button type="button" class="btn-close" (click)="closeCreateModal()">✕</button>
       </div>
 
-      <form [formGroup]="bedForm" (ngSubmit)="createBed()">
+      <form [formGroup]="bedForm" (ngSubmit)="saveBed()">
         <div class="modal-body">
           <label>
             Hospital Facility <span class="required">*</span>
@@ -194,12 +217,19 @@
             <input formControlName="code" placeholder="e.g. TASH-ICU-05" />
             <small class="hint">Must be globally unique across all Addis hospitals.</small>
           </label>
+
+          <label>
+            Operational Status <span class="required">*</span>
+            <select formControlName="status">
+              <option *ngFor="let opt of statusOptions" [value]="opt.value">{{ opt.label }}</option>
+            </select>
+          </label>
         </div>
 
         <div class="modal-footer">
           <button type="button" class="btn-cancel" (click)="closeCreateModal()">Cancel</button>
           <button type="submit" class="btn-save" [disabled]="bedForm.invalid || saving">
-            {{ saving ? 'Registering…' : 'Register Bed' }}
+            {{ saving ? 'Saving…' : (editingBed ? 'Save Changes' : 'Register Bed') }}
           </button>
         </div>
       </form>

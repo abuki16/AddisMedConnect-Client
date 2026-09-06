@@ -12,12 +12,13 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { ResourceStore, Ambulance, Bed } from '../../Store/resource.store';
 import { BedSignalRService } from '../../services/bed-signalr.service';
 import { ToastService } from '../../core/toast.service';
+import { AuthService } from '../../core/auth.service';
 import { apiUrl } from '../../core/api.config';
 
 @Component({
@@ -26,16 +27,23 @@ import { apiUrl } from '../../core/api.config';
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    RouterLink,
   ],
   templateUrl: './assignment-dashboard.html',
   styleUrls: ['./assignment-dashboard.scss'],
 })
 export class AssignmentDashboardComponent implements OnInit, OnDestroy {
+  public auth = inject(AuthService);
   readonly resourceStore = inject(ResourceStore);
   private bedSignalRService = inject(BedSignalRService);
   private toast = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
   private signalRSub!: Subscription;
+
+  signOut(): void {
+    this.auth.logout();
+    this.toast.info('You have been signed out.');
+  }
 
   get availableAmbulances(): Ambulance[] {
     return (this.resourceStore.ambulances() as Ambulance[]) || [];
@@ -69,6 +77,7 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.initForm();
     this.incidentNumber = this.route.snapshot.paramMap.get('incidentNumber');
 
     if (!this.incidentNumber) {
@@ -77,7 +86,6 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.initForm();
     this.resourceStore.loadAmbulances();
     this.fetchCaseDetailsAndBeds();
 

@@ -8,6 +8,8 @@ import { DischargeClerkComponent } from './pages/discharge-clerk/discharge-clerk
 import { AdminComponent } from './pages/admin/admin.component';
 import { UserManagementComponent } from './pages/user-management/user-management.component';
 import { BedManagementComponent } from './pages/bed-management/bed-management.component';
+import { AmbulanceManagementComponent } from './pages/ambulance-management/ambulance-management.component';
+import { HospitalManagementComponent } from './pages/hospital-management/hospital-management.component';
 import { loginRedirectGuard, roleGuard } from './core/role.guard';
 
 export const routes: Routes = [
@@ -38,20 +40,32 @@ export const routes: Routes = [
     canActivate: [roleGuard('DischargeClerk', 'SystemAdmin')],
   },
   { path: 'beds', redirectTo: 'admin/beds' },
+  { path: 'ambulances', redirectTo: 'admin/ambulances' },
+  { path: 'hospitals', redirectTo: 'admin/hospitals' },
   {
     path: 'admin',
     component: AdminComponent,
-    // canActivate: [roleGuard('SystemAdmin')], // Temporarily bypassed to create admin
+    canActivate: [roleGuard('SystemAdmin')],
+  },
+  {
+    path: 'admin/hospitals',
+    component: HospitalManagementComponent,
+    canActivate: [roleGuard('SystemAdmin')],
   },
   {
     path: 'admin/beds',
     component: BedManagementComponent,
-    // canActivate: [roleGuard('SystemAdmin')], // Temporarily bypassed to create admin
+    canActivate: [roleGuard('SystemAdmin')],
+  },
+  {
+    path: 'admin/ambulances',
+    component: AmbulanceManagementComponent,
+    canActivate: [roleGuard('SystemAdmin')],
   },
   {
     path: 'admin/users',
     component: UserManagementComponent,
-    // canActivate: [roleGuard('SystemAdmin')], // Temporarily bypassed to create admin
+    canActivate: [roleGuard('SystemAdmin')],
   },
   { path: '', pathMatch: 'full', redirectTo: 'login' },
   { path: '**', redirectTo: 'login' },

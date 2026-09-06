@@ -2,6 +2,7 @@ import {
   Component,
   ChangeDetectorRef,
   inject,
+  OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -134,6 +135,17 @@ import { ToastService } from '../../core/toast.service';
                   <mat-icon>logout</mat-icon>
                   Sign out
                 </button>
+              </div>
+            </div>
+
+            <div class="lockout-alert-banner" *ngIf="lockoutMessage">
+              <mat-icon class="lockout-banner-icon">lock_clock</mat-icon>
+              <div class="lockout-banner-content">
+                <strong>Access Temporarily Restricted</strong>
+                <p>{{ lockoutMessage }}</p>
+                <div *ngIf="lockoutSeconds > 0" class="lockout-timer-pill">
+                  ⏱️ Try again in: <strong>{{ formatRemainingTime(lockoutSeconds) }}</strong>
+                </div>
               </div>
             </div>
 
@@ -316,6 +328,53 @@ import { ToastService } from '../../core/toast.service';
         border-radius: 12px;
         margin-bottom: 1.5rem;
       }
+      .lockout-alert-banner {
+        background: #fef3f2;
+        border: 1px solid #fecdca;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 0.85rem;
+        align-items: flex-start;
+        color: #b42318;
+      }
+      .lockout-banner-icon {
+        font-size: 2rem;
+        width: 2rem;
+        height: 2rem;
+        color: #d92d20;
+        flex-shrink: 0;
+      }
+      .lockout-banner-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+      .lockout-banner-content strong {
+        font-size: 0.95rem;
+        color: #912018;
+      }
+      .lockout-banner-content p {
+        margin: 0;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        color: #b42318;
+      }
+      .lockout-timer-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: #fee4e2;
+        border: 1px solid #fecdca;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #b42318;
+        margin-top: 0.25rem;
+        width: fit-content;
+      }
       .session-info {
         display: flex;
         align-items: center;
@@ -383,9 +442,12 @@ import { ToastService } from '../../core/toast.service';
     `,
   ],
 })
-export class LoginComponent {
+export class LoginComponent implements OnDestroy {
   showPassword = false;
   loading = false;
+  lockoutMessage: string | null = null;
+  lockoutSeconds = 0;
+  private lockoutTimer: any = null;
   form;
 
   constructor(
@@ -405,6 +467,46 @@ export class LoginComponent {
         Validators.required,
       ],
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.lockoutTimer) {
+      clearInterval(this.lockoutTimer);
+      this.lockoutTimer = null;
+    }
+  }
+
+  formatRemainingTime(seconds: number): string {
+    if (seconds >= 86400) {
+      const days = Math.floor(seconds / 86400);
+      const hours = Math.floor((seconds % 86400) / 3600);
+      return `${days} day(s) ${hours} hr(s)`;
+    }
+    if (seconds >= 3600) {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      return `${hours}h ${mins}m ${secs}s`;
+    }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+  }
+
+  startLockoutCountdown(): void {
+    if (this.lockoutTimer) clearInterval(this.lockoutTimer);
+    if (this.lockoutSeconds <= 0) return;
+
+    this.lockoutTimer = setInterval(() => {
+      this.lockoutSeconds--;
+      if (this.lockoutSeconds <= 0) {
+        clearInterval(this.lockoutTimer);
+        this.lockoutTimer = null;
+        this.lockoutMessage = null;
+        this.toast.info('Lockout duration has expired. You may now attempt to sign in again.');
+      }
+      this.cdr.markForCheck();
+    }, 1000);
   }
 
   continueToDashboard(): void {
@@ -447,19 +549,34 @@ export class LoginComponent {
         },
         error: (err) => {
           let errorMsg = '';
-          if (err.status === 401) {
+          if (err.status === 423) {
+            errorMsg =
+              err.error?.message ||
+              'Security Alert: Account has been locked due to repeated failed login attempts.';
+            this.lockoutMessage = errorMsg;
+            this.lockoutSeconds = err.error?.retryAfterSeconds || 300;
+            this.startLockoutCountdown();
+            this.toast.error(errorMsg, 8000);
+          } else if (err.status === 401) {
             errorMsg =
               err.error?.message ||
               'Invalid email/username or password.';
+            this.lockoutMessage = null;
+            if (errorMsg.includes('remaining') || errorMsg.includes('trial')) {
+              this.toast.warning(errorMsg, 7000);
+            } else {
+              this.toast.error(errorMsg);
+            }
           } else if (err.status === 0) {
             errorMsg =
               'Cannot connect to the AddisMedConnect backend service. Please verify the API server is running.';
+            this.toast.error(errorMsg);
           } else {
             errorMsg =
               err.error?.message ||
               `Authentication service error (${err.status}).`;
+            this.toast.error(errorMsg);
           }
-          this.toast.error(errorMsg);
           this.cdr.markForCheck();
         },
       });

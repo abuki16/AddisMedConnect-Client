@@ -1,108 +1,133 @@
-<div class="container my-5">
-  <div class="row justify-content-center">
-    <div class="col-lg-8">
-      <div class="card shadow border-0">
-        <div
-          class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center"
-        >
-          <h3 class="mb-0 fw-bold">🚑 Resource Assignment Dashboard</h3>
-          <button class="btn btn-outline-light btn-sm" (click)="goToNewIntake()">
-            ➕ New Intake
+<main class="assignment-view">
+  <header>
+    <div>
+      <div class="nav-breadcrumbs">
+        <a routerLink="/dispatch">&larr; Central Dispatch Console</a>
+        <span *ngIf="auth.user()?.role === 'SystemAdmin'">/</span>
+        <a routerLink="/admin" *ngIf="auth.user()?.role === 'SystemAdmin'">Control Center</a>
+      </div>
+      <p class="eyebrow">CENTRAL DISPATCH · RESOURCE ALLOCATION</p>
+      <h1>Emergency Resource Assignment</h1>
+      <p class="header-sub">
+        Pair active incident <strong>#{{ incidentNumber }}</strong> with hospital bed reservations and fleet ambulance telemetry.
+      </p>
+    </div>
+    <div class="header-actions">
+      <div class="user-badge" *ngIf="auth.user() as u">
+        <span class="role-pill">{{ u.role }}</span>
+        <span class="user-name">{{ u.fullName }}</span>
+      </div>
+      <button type="button" class="btn-new-intake" (click)="goToNewIntake()">
+        ➕ Register Another Case
+      </button>
+      <button type="button" class="btn-signout" (click)="signOut()">
+        Sign out
+      </button>
+    </div>
+  </header>
+
+  <div class="assignment-container">
+    <div class="assignment-card">
+      <!-- Loading State -->
+      <div *ngIf="isLoadingCase" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading incident telemetry and facility resource availability...</p>
+      </div>
+
+      <!-- Success State -->
+      <div *ngIf="isDispatched" class="dispatch-success-banner">
+        <div class="success-icon-badge">✅</div>
+        <h2>Resources Successfully Dispatched!</h2>
+        <p>
+          Ambulance and Bed have been coordinated and committed to Incident <strong>#{{ incidentNumber }}</strong>.
+        </p>
+        <div class="success-actions">
+          <button type="button" class="btn-primary" (click)="goToNewIntake()">
+            ➕ Register Another Case
           </button>
-        </div>
-
-        <div class="card-body p-4">
-          <!-- Loading State -->
-          <div *ngIf="isLoadingCase" class="text-center py-5">
-            <div
-              class="spinner-border text-primary mb-3"
-              role="status"
-              style="width: 3rem; height: 3rem"
-            >
-              <span class="visually-hidden">Loading...</span>
-            </div>
-            <h5 class="text-muted fw-semibold">
-              Loading incident details and hospital resources...
-            </h5>
-          </div>
-
-          <!-- Success State -->
-          <div
-            *ngIf="isDispatched"
-            class="text-center py-4"
-          >
-            <h4 class="fw-bold text-success mb-2">🎉 Dispatch Successful!</h4>
-            <p class="text-muted mb-4">
-              Resources have been assigned and dispatched to Incident #{{ incidentNumber }}.
-            </p>
-            <button
-              type="button"
-              class="btn btn-primary px-4 fw-semibold"
-              (click)="goToNewIntake()"
-            >
-              Register Another Case
-            </button>
-          </div>
-
-          <!-- Main Assignment Form (Hidden during loading or after success) -->
-          <ng-container *ngIf="!isLoadingCase && !isDispatched">
-            <div class="alert alert-info border-info mb-4">
-              <h5 class="alert-heading fw-bold text-dark">Active Incident Target</h5>
-              <p class="mb-0">
-                Incident Number:
-                <span class="badge bg-dark fs-6 ms-1">{{ incidentNumber }}</span>
-              </p>
-            </div>
-
-            <form [formGroup]="assignmentForm" (ngSubmit)="onConfirmAssignment()">
-              <!-- Bed Selection -->
-              <div class="mb-4">
-                <label class="form-label fw-bold">Select Hospital Bed *</label>
-                <select formControlName="bedId" class="form-select form-select-lg">
-                  <option value="">-- Choose Free Bed --</option>
-                  <option *ngFor="let bed of availableBeds" [value]="bed.id">
-                    Bed #{{ bed.bedNumber }} ({{ bed.wardType }} Ward)
-                  </option>
-                </select>
-                <div *ngIf="availableBeds.length === 0" class="form-text text-danger mt-1">
-                  ⚠️ No available beds found for this target hospital.
-                </div>
-              </div>
-
-              <!-- Ambulance Selection -->
-              <div class="mb-4">
-                <label class="form-label fw-bold">Select Ambulance Unit *</label>
-                <select formControlName="ambulanceId" class="form-select form-select-lg">
-                  <option value="">-- Choose Available Ambulance --</option>
-                  <option *ngFor="let amb of availableAmbulances" [value]="amb.id">
-                    Plate: {{ amb.plateNumber }} (Driver: {{ amb.driverName || 'Ready' }})
-                  </option>
-                </select>
-                <div *ngIf="availableAmbulances.length === 0" class="form-text text-danger mt-1">
-                  ⚠️ No available ambulances online at the moment.
-                </div>
-              </div>
-
-              <div class="d-flex gap-3 pt-3 border-top">
-                <button
-                  type="submit"
-                  class="btn btn-success btn-lg flex-grow-1 fw-bold"
-                  [disabled]="isAssigning"
-                >
-                  {{ isAssigning ? 'Processing Dispatch...' : 'Confirm & Dispatch Resources' }}
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-outline-secondary btn-lg px-4"
-                  (click)="goToNewIntake()"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </ng-container>
+          <a routerLink="/dispatch" class="btn-secondary">
+            Return to Dispatch Console
+          </a>
         </div>
       </div>
+
+      <!-- Main Assignment Form -->
+      <ng-container *ngIf="!isLoadingCase && !isDispatched">
+        <div class="incident-target-banner">
+          <div class="target-left">
+            <span class="target-icon">🚨</span>
+            <div>
+              <span class="target-label">ACTIVE EMERGENCY INCIDENT</span>
+              <h3 class="target-code">{{ incidentNumber }}</h3>
+              <p class="target-hospital" *ngIf="targetHospitalName">
+                Target Facility: <strong>{{ targetHospitalName }}</strong>
+              </p>
+            </div>
+          </div>
+          <div class="target-status">
+            <span class="status-pill">Awaiting Resource Dispatch</span>
+          </div>
+        </div>
+
+        <form [formGroup]="assignmentForm" (ngSubmit)="onConfirmAssignment()" class="assignment-form">
+          <!-- Bed Selection -->
+          <div class="form-group">
+            <label class="field-label">
+              <span>🛏️ Reserve Hospital Bed</span>
+              <span class="required">*</span>
+            </label>
+            <p class="field-help">
+              Select an available bed at {{ targetHospitalName || 'the destination hospital' }} to hold for this patient.
+            </p>
+            <select formControlName="bedId" class="styled-select" [class.input-error]="assignmentForm.get('bedId')?.invalid && assignmentForm.get('bedId')?.touched">
+              <option value="">-- Select Available Hospital Bed --</option>
+              <option *ngFor="let bed of availableBeds" [value]="bed.id">
+                Bed #{{ bed.bedNumber }} — {{ bed.wardType }} Ward
+              </option>
+            </select>
+            <div *ngIf="availableBeds.length === 0" class="resource-alert alert-warning">
+              ⚠️ No available beds found in this facility's registry. Contact triage or select alternate facility.
+            </div>
+          </div>
+
+          <!-- Ambulance Selection -->
+          <div class="form-group">
+            <label class="field-label">
+              <span>🚑 Dispatch Ambulance Unit</span>
+              <span class="required">*</span>
+            </label>
+            <p class="field-help">
+              Select an active fleet unit to deploy for emergency patient pickup.
+            </p>
+            <select formControlName="ambulanceId" class="styled-select" [class.input-error]="assignmentForm.get('ambulanceId')?.invalid && assignmentForm.get('ambulanceId')?.touched">
+              <option value="">-- Select Available Ambulance --</option>
+              <option *ngFor="let amb of availableAmbulances" [value]="amb.id">
+                {{ amb.plateNumber }} — Driver: {{ amb.driverName || 'Certified Fleet Driver' }}
+              </option>
+            </select>
+            <div *ngIf="availableAmbulances.length === 0" class="resource-alert alert-warning">
+              ⚠️ No available ambulances online in fleet registry at this moment.
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="submit"
+              class="btn-submit-dispatch"
+              [disabled]="isAssigning || assignmentForm.invalid"
+            >
+              {{ isAssigning ? 'Deploying Emergency Resources…' : '🚀 Confirm & Dispatch Resources' }}
+            </button>
+            <button
+              type="button"
+              class="btn-cancel"
+              (click)="goToNewIntake()"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </ng-container>
     </div>
   </div>
-</div>
+</main>

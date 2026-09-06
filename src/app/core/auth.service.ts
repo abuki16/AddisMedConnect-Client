@@ -90,17 +90,13 @@ export class AuthService {
   }
 
   landingPath(role = this.userState()?.role): string {
-    return (
-      (
-        {
-          Dispatcher: '/dispatch',
-          AmbulanceDriver: '/driver',
-          TriageNurse: '/triage',
-          DischargeClerk: '/discharge',
-          SystemAdmin: '/admin',
-        } as Record<string, string>
-      )[role ?? ''] ?? '/login'
-    );
+    const r = (role || '').trim().toLowerCase();
+    if (r === 'dispatcher' || r === 'dispatch') return '/dispatch';
+    if (r === 'ambulancedriver' || r === 'driver') return '/driver';
+    if (r === 'triagenurse' || r === 'triage') return '/triage';
+    if (r === 'dischargeclerk' || r === 'discharge') return '/discharge';
+    if (r === 'systemadmin' || r === 'admin') return '/admin';
+    return '/login';
   }
 
   private readUser(): AuthUser | null {

@@ -60,8 +60,20 @@ export class TriageComponent implements OnInit, OnDestroy {
   selectedCase: EmergencyCase | null = null;
 
   pendingTriageCount = 0;
-  assessmentPriority = 'Yellow';
+  assessmentPriority: 'Red' | 'Yellow' | 'Green' = 'Yellow';
   confirmedBedId = '';
+  releaseAmbulance = true;
+  isSubmitting = false;
+
+  vitals = {
+    bloodPressure: '',
+    heartRate: '',
+    respiratoryRate: '',
+    spO2: '',
+    temperature: '',
+    consciousness: 'Alert',
+  };
+  triageNotes = '';
 
   loading = false;
   isRealtimeConnected = false;
@@ -235,6 +247,27 @@ export class TriageComponent implements OnInit, OnDestroy {
               'Processed pendingCases length:',
               this.pendingCases.length,
             );
+
+            // Auto-select first case if none is selected or previous case is no longer pending
+            if (this.pendingCases.length > 0) {
+              const currentStillExists =
+                this.selectedCase &&
+                this.pendingCases.some(
+                  (c) => c.incidentNumber === this.selectedCase?.incidentNumber,
+                );
+              if (!currentStillExists) {
+                this.selectCase(this.pendingCases[0]);
+              } else {
+                const refreshed = this.pendingCases.find(
+                  (c) => c.incidentNumber === this.selectedCase?.incidentNumber,
+                );
+                if (refreshed) {
+                  this.selectedCase = refreshed;
+                }
+              }
+            } else {
+              this.selectedCase = null;
+            }
           });
         },
         error: (err) => {
@@ -264,16 +297,40 @@ export class TriageComponent implements OnInit, OnDestroy {
     });
   }
 
+  setPriority(priority: 'Red' | 'Yellow' | 'Green'): void {
+    this.assessmentPriority = priority;
+  }
+
   selectCase(emergencyCase: EmergencyCase, event?: Event): void {
     if (event) {
       event.stopPropagation();
     }
     this.selectedCase = emergencyCase;
-    this.assessmentPriority =
-      typeof emergencyCase.priority === 'string'
-        ? emergencyCase.priority
-        : 'Yellow';
+
+    const prioStr = String(emergencyCase.priority || '').trim().toLowerCase();
+    if (prioStr.includes('red') || prioStr === '2') {
+      this.assessmentPriority = 'Red';
+    } else if (prioStr.includes('green') || prioStr === '0') {
+      this.assessmentPriority = 'Green';
+    } else {
+      this.assessmentPriority = 'Yellow';
+    }
+
     this.confirmedBedId = emergencyCase.assignedBedId || '';
+    this.releaseAmbulance = !!(
+      emergencyCase.assignedAmbulanceId ||
+      emergencyCase.ambulancePlateNumber
+    );
+
+    this.vitals = {
+      bloodPressure: '',
+      heartRate: '',
+      respiratoryRate: '',
+      spO2: '',
+      temperature: '',
+      consciousness: 'Alert',
+    };
+    this.triageNotes = '';
 
     if (emergencyCase.targetHospitalId) {
       this.loadHospitalBeds(emergencyCase.targetHospitalId);
@@ -282,7 +339,7 @@ export class TriageComponent implements OnInit, OnDestroy {
 
   loadHospitalBeds(hospitalId: string): void {
     this.http
-      .get<Bed[]>(`${this.apiUrl}/hospitals/${hospitalId}/beds`)
+      .get<any[]>(`${this.apiUrl}/hospitals/${hospitalId}/beds`)
       .subscribe({
         next: (beds) => {
           this.ngZone.run(() => {
@@ -292,6 +349,9 @@ export class TriageComponent implements OnInit, OnDestroy {
                 String(b.status).toLowerCase() === 'available' ||
                 b.id === this.selectedCase?.assignedBedId,
             );
+            if (!this.confirmedBedId && this.selectedCase?.assignedBedId) {
+              this.confirmedBedId = this.selectedCase.assignedBedId;
+            }
           });
         },
         error: (err) => {
@@ -300,31 +360,72 @@ export class TriageComponent implements OnInit, OnDestroy {
       });
   }
 
-  quickApprove(emergencyCase: EmergencyCase, event: Event): void {
+  startTriageFor(emergencyCase: EmergencyCase, event: Event): void {
     event.stopPropagation();
     this.selectCase(emergencyCase);
-    this.submitTriage();
+  }
+
+  signOut(): void {
+    this.auth.logout();
+    this.toast.info('You have been signed out.');
   }
 
   submitTriage(): void {
-    if (!this.selectedCase) return;
+    if (!this.selectedCase || this.isSubmitting) return;
 
+    this.isSubmitting = true;
     const incidentNum = this.selectedCase.incidentNumber;
+    const patientName = this.selectedCase.patientName;
+    const bedIdToConfirm =
+      this.confirmedBedId || this.selectedCase.assignedBedId || null;
+
+    const vitalsList: string[] = [];
+    if (this.vitals.bloodPressure?.trim()) {
+      vitalsList.push(`BP: ${this.vitals.bloodPressure.trim()} mmHg`);
+    }
+    if (this.vitals.heartRate?.trim()) {
+      vitalsList.push(`HR: ${this.vitals.heartRate.trim()} bpm`);
+    }
+    if (this.vitals.respiratoryRate?.trim()) {
+      vitalsList.push(`RR: ${this.vitals.respiratoryRate.trim()} /min`);
+    }
+    if (this.vitals.spO2?.trim()) {
+      vitalsList.push(`SpO2: ${this.vitals.spO2.trim()}%`);
+    }
+    if (this.vitals.temperature?.trim()) {
+      vitalsList.push(`Temp: ${this.vitals.temperature.trim()}°C`);
+    }
+    if (this.vitals.consciousness) {
+      vitalsList.push(`AVPU: ${this.vitals.consciousness}`);
+    }
+
     const payload = {
       priority: this.assessmentPriority,
-      confirmedBedId: this.confirmedBedId || null,
+      confirmedBedId: bedIdToConfirm,
+      releaseAmbulance: this.releaseAmbulance,
+      vitalSigns: vitalsList.length ? vitalsList.join(' | ') : null,
+      triageNotes: this.triageNotes?.trim() || null,
     };
 
+    const bedObj = this.availableBeds.find((b) => b.id === bedIdToConfirm);
+    const bedDisplay = bedObj?.bedNumber
+      ? `Bed #${bedObj.bedNumber}`
+      : this.selectedCase.assignedBedNumber || this.selectedCase.bedNumber
+        ? `Bed #${this.selectedCase.assignedBedNumber || this.selectedCase.bedNumber}`
+        : '';
+
     this.http
-      .post(
-        `${this.apiUrl}/emergency-cases/${incidentNum}/triage`,
-        payload,
-      )
+      .post(`${this.apiUrl}/emergency-cases/${incidentNum}/triage`, payload)
       .subscribe({
         next: () => {
           this.ngZone.run(() => {
+            this.isSubmitting = false;
+            const ambMessage = this.releaseAmbulance
+              ? ' · Ambulance returned to fleet'
+              : ' · Ambulance held for transfer';
+            const bedMsg = bedDisplay ? ` · ${bedDisplay} is now OCCUPIED` : '';
             this.toast.success(
-              `Triage completed & bed confirmed for incident ${incidentNum}!`,
+              `Triage approved for ${patientName}! Priority: ${this.assessmentPriority}${bedMsg}${ambMessage}.`,
             );
             this.selectedCase = null;
             this.loadData();
@@ -332,6 +433,7 @@ export class TriageComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.ngZone.run(() => {
+            this.isSubmitting = false;
             const msg =
               err.error?.message ||
               'Failed to submit triage assessment.';

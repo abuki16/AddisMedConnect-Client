@@ -309,4 +309,16 @@ export class UserManagementComponent implements OnInit {
       },
     });
   }
+
+  unlock(user: any): void {
+    this.http.post(`${apiUrl}/auth/users/${user.id}/unlock`, {}).subscribe({
+      next: () => {
+        this.toast.success(`User "${user.fullName}" unlocked successfully.`);
+        this.load();
+      },
+      error: (e) => {
+        this.toast.error(e.error?.message || 'Could not unlock user.');
+      },
+    });
+  }
 }

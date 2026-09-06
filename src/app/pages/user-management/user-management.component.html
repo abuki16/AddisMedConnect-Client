@@ -4,7 +4,11 @@
       <div class="nav-breadcrumbs">
         <a routerLink="/admin">&larr; Control Center</a>
         <span>/</span>
+        <a routerLink="/admin/hospitals">Hospital Network</a>
+        <span>/</span>
         <a routerLink="/admin/beds">Bed Management</a>
+        <span>/</span>
+        <a routerLink="/admin/ambulances">Ambulance Fleet</a>
       </div>
       <p class="eyebrow">SYSTEM ADMIN</p>
       <h1>User Access Management</h1>
@@ -163,6 +167,7 @@
             <div class="user-main">
               <strong>{{ user.fullName }}</strong>
               <span class="role-badge role-{{ user.role?.toLowerCase() }}">{{ user.role }}</span>
+              <span class="lock-badge" *ngIf="user.isLockedOut">🔒 Locked (Tier {{ user.lockoutTier }})</span>
             </div>
             <p class="user-email">{{ user.email }} · <span class="user-phone">{{ user.phoneNumber || 'No phone' }}</span></p>
             <p class="user-hospital">
@@ -170,6 +175,7 @@
             </p>
           </div>
           <div class="user-card-actions">
+            <button type="button" class="btn-unlock" *ngIf="user.isLockedOut" (click)="unlock(user)">Unlock 🔓</button>
             <button type="button" class="btn-edit" (click)="edit(user)">Edit</button>
             <button type="button" class="btn-delete" (click)="remove(user)">Delete</button>
           </div>

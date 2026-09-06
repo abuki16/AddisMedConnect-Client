@@ -8,7 +8,9 @@
 
     <nav aria-label="Administration pages">
       <a routerLink="/admin" class="nav-link active">📊 Control Center</a>
+      <a routerLink="/admin/hospitals" class="nav-link">🏥 Hospital Network Management</a>
       <a routerLink="/admin/beds" class="nav-link">🛏️ Bed Coordination &amp; Registry</a>
+      <a routerLink="/admin/ambulances" class="nav-link">🚑 Ambulance Fleet Management</a>
       <a routerLink="/admin/users" class="nav-link">👥 User Access Management</a>
       <hr class="nav-divider" />
       <span class="nav-heading">Role Dashboards</span>
@@ -54,10 +56,11 @@
     <!-- QUICK ACTIONS -->
     <div class="quick-actions-bar">
       <span class="quick-label">⚡ Direct Actions:</span>
+      <a routerLink="/admin/hospitals" class="quick-btn btn-action-hosp">🏥 Manage Hospital Network</a>
       <a routerLink="/admin/beds" class="quick-btn btn-action-bed">🛏️ Register Hospital Bed</a>
+      <a routerLink="/admin/ambulances" class="quick-btn btn-action-amb">🚑 Manage Ambulance Fleet</a>
       <a routerLink="/admin/users" class="quick-btn btn-action-user">👤 Add Staff Account</a>
       <a routerLink="/dispatch" class="quick-btn btn-action-dispatch">🚨 Register New 907 Incident</a>
-      <a routerLink="/driver" class="quick-btn btn-action-fleet">📡 Inspect Live Fleet GPS</a>
     </div>
 
     <!-- METRICS HUD -->
@@ -70,11 +73,11 @@
         </div>
       </article>
 
-      <article class="metric-card">
+      <article class="metric-card" routerLink="/admin/hospitals" style="cursor: pointer;" title="Open Hospital Network Management">
         <span class="metric-icon">🏥</span>
         <div>
           <strong>{{ hospitals.length }}</strong>
-          <span>Partner Hospitals</span>
+          <span>Partner Hospitals &rarr;</span>
         </div>
       </article>
 
