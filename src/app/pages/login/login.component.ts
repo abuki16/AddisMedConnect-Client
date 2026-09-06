@@ -1,4 +1,8 @@
-import { Component, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  ChangeDetectorRef,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ReactiveFormsModule,
@@ -7,17 +11,32 @@ import {
 } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+  ],
   template: `
     <main class="login-shell">
-      <section>
+      <section class="brand-panel">
         <p class="eyebrow">MINISTRY OF HEALTH · ADDIS ABABA</p>
-        <h1>Emergency Care, Connected.</h1>
+        <h1 class="brand-title">Emergency Care, Connected.</h1>
         <p class="lead-text">
           Unified Emergency Referral, Real-Time Bed Coordination &amp; Ambulance
           Telemetry Network for Addis Ababa Healthcare Facilities.
@@ -63,79 +82,134 @@ import { ToastService } from '../../core/toast.service';
         </div>
       </section>
 
-      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <div
-          class="active-session"
-          *ngIf="auth.isLoggedIn() && auth.user() as u"
-        >
-          <p>
-            Currently signed in as
-            <strong>{{ u.fullName }}</strong> (<em>{{ u.role }}</em>)
-          </p>
-          <div class="session-actions">
-            <button
-              type="button"
-              class="btn-continue"
-              (click)="continueToDashboard()"
+      <section class="form-panel">
+        <mat-card class="login-card" appearance="raised">
+          <mat-card-header>
+            <mat-card-title class="card-heading">
+              {{
+                auth.isLoggedIn()
+                  ? 'Active Session Detected'
+                  : 'Sign in to AddisMedConnect'
+              }}
+            </mat-card-title>
+            <mat-card-subtitle class="card-subheading">
+              {{
+                auth.isLoggedIn()
+                  ? 'Continue with your active credentials or switch accounts'
+                  : 'Enter your emergency network credentials to access clinical dispatch'
+              }}
+            </mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content class="card-body-content">
+            <div
+              class="active-session-banner"
+              *ngIf="auth.isLoggedIn() && auth.user() as u"
             >
-              Go to {{ u.role }} Dashboard &rarr;
-            </button>
-            <button
-              type="button"
-              class="btn-signout"
-              (click)="signOut()"
+              <div class="session-info">
+                <mat-icon class="session-icon">account_circle</mat-icon>
+                <div>
+                  <p class="session-name">
+                    Signed in as <strong>{{ u.fullName }}</strong>
+                  </p>
+                  <span class="session-role">{{ u.role }}</span>
+                </div>
+              </div>
+              <div class="session-actions">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="continueToDashboard()"
+                >
+                  <mat-icon>dashboard</mat-icon>
+                  Go to {{ u.role }} Dashboard
+                </button>
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  type="button"
+                  (click)="signOut()"
+                >
+                  <mat-icon>logout</mat-icon>
+                  Sign out
+                </button>
+              </div>
+            </div>
+
+            <form
+              [formGroup]="form"
+              (ngSubmit)="submit()"
+              novalidate
+              class="credentials-form"
             >
-              Sign out
-            </button>
-          </div>
-        </div>
+              <mat-form-field
+                appearance="outline"
+                class="full-width"
+              >
+                <mat-label>Email address or Username</mat-label>
+                <input
+                  matInput
+                  type="text"
+                  formControlName="email"
+                  placeholder="e.g. nurse.abebe or staff@moh.gov.et"
+                  autocomplete="username"
+                />
+                <mat-icon matPrefix>person</mat-icon>
+                <mat-error *ngIf="form.get('email')?.hasError('required')">
+                  Email or username is required.
+                </mat-error>
+              </mat-form-field>
 
-        <h2>
-          {{
-            auth.isLoggedIn()
-              ? 'Or sign in with another account'
-              : 'Sign in to AddisMedConnect'
-          }}
-        </h2>
+              <mat-form-field
+                appearance="outline"
+                class="full-width"
+              >
+                <mat-label>Password</mat-label>
+                <input
+                  matInput
+                  [type]="showPassword ? 'text' : 'password'"
+                  formControlName="password"
+                  placeholder="••••••••••••"
+                  autocomplete="current-password"
+                />
+                <mat-icon matPrefix>lock</mat-icon>
+                <button
+                  mat-icon-button
+                  matSuffix
+                  type="button"
+                  (click)="showPassword = !showPassword"
+                  [attr.aria-label]="'Toggle password visibility'"
+                  tabindex="-1"
+                >
+                  <mat-icon>
+                    {{ showPassword ? 'visibility_off' : 'visibility' }}
+                  </mat-icon>
+                </button>
+                <mat-error *ngIf="form.get('password')?.hasError('required')">
+                  Password is required.
+                </mat-error>
+              </mat-form-field>
 
-        <label>
-          Email address or Username
-          <input
-            type="text"
-            formControlName="email"
-            placeholder="name@domain.et or username"
-            autocomplete="username"
-          />
-        </label>
-
-        <label>
-          Password
-          <div class="input-with-action">
-            <input
-              [type]="showPassword ? 'text' : 'password'"
-              formControlName="password"
-              placeholder="••••••••••••"
-              autocomplete="current-password"
-            />
-            <button
-              type="button"
-              class="btn-peek"
-              (click)="showPassword = !showPassword"
-              tabindex="-1"
-              title="Toggle password visibility"
-            >
-              {{ showPassword ? '🙈 Hide' : '👁️ Show' }}
-            </button>
-          </div>
-        </label>
-
-        <button
-          type="submit"
-          [disabled]="form.invalid || loading"
-        >
-          {{ loading ? 'Signing in…' : 'Sign in' }}
-        </button>
-      </form>
+              <button
+                mat-flat-button
+                color="primary"
+                type="submit"
+                class="submit-button"
+                [disabled]="form.invalid || loading"
+              >
+                <mat-spinner
+                  diameter="20"
+                  *ngIf="loading"
+                  class="button-spinner"
+                ></mat-spinner>
+                <mat-icon *ngIf="!loading">login</mat-icon>
+                <span>{{ loading ? 'Authenticating…' : 'Sign in to AddisMedConnect' }}</span>
+              </button>
+            </form>
+          </mat-card-content>
+        </mat-card>
+      </section>
     </main>
   `,
   styles: [
@@ -143,16 +217,15 @@ import { ToastService } from '../../core/toast.service';
       .login-shell {
         min-height: 100vh;
         display: grid;
-        grid-template-columns: 1.2fr 0.8fr;
+        grid-template-columns: 1.15fr 0.85fr;
         gap: 3.5rem;
         align-items: center;
-        padding: 6vw 8vw;
+        padding: 4vw 7vw;
         background: linear-gradient(135deg, #071d2b 0%, #0c2d42 100%);
         color: #eef7f8;
-        font-family: system-ui, -apple-system, sans-serif;
       }
-      .login-shell section {
-        max-width: 560px;
+      .brand-panel {
+        max-width: 580px;
       }
       .eyebrow {
         letter-spacing: 0.18em;
@@ -161,9 +234,9 @@ import { ToastService } from '../../core/toast.service';
         font-size: 0.85rem;
         margin-bottom: 0.5rem;
       }
-      .login-shell h1 {
-        font-size: clamp(2.2rem, 4.5vw, 4rem);
-        line-height: 1.08;
+      .brand-title {
+        font-size: clamp(2.2rem, 4.2vw, 3.8rem);
+        line-height: 1.1;
         margin: 0.5rem 0 1rem;
         font-weight: 800;
       }
@@ -176,7 +249,7 @@ import { ToastService } from '../../core/toast.service';
       .system-highlights {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.9rem;
       }
       .highlight-item {
         display: flex;
@@ -210,130 +283,101 @@ import { ToastService } from '../../core/toast.service';
         color: #92b1c4;
         line-height: 1.35;
       }
-      .login-shell form {
-        display: grid;
-        gap: 1.1rem;
-        background: #ffffff;
+      .form-panel {
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+      }
+      .login-card {
+        border-radius: 20px !important;
+        padding: 1.5rem !important;
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35) !important;
+        background: #ffffff !important;
         color: #102a38;
-        padding: 2.2rem;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
       }
-      .login-shell form h2 {
-        font-size: 1.4rem;
-        margin: 0;
-        color: #0c2d42;
+      .card-heading {
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        color: #0c2d42 !important;
+        margin-bottom: 0.35rem;
       }
-      .active-session {
+      .card-subheading {
+        font-size: 0.9rem !important;
+        color: #627b87 !important;
+        line-height: 1.4;
+      }
+      .card-body-content {
+        padding-top: 1.5rem !important;
+      }
+      .active-session-banner {
         background: #e8f5f4;
         border: 1px solid #61d5bc;
-        padding: 0.9rem 1rem;
-        border-radius: 10px;
-        font-size: 0.9rem;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
       }
-      .active-session p {
-        margin: 0 0 0.6rem;
+      .session-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.85rem;
+      }
+      .session-icon {
+        font-size: 2rem;
+        width: 2rem;
+        height: 2rem;
+        color: #007c75;
+      }
+      .session-name {
+        margin: 0;
+        font-size: 0.95rem;
+      }
+      .session-role {
+        display: inline-block;
+        font-size: 0.75rem;
+        background: #007c75;
+        color: #fff;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
       .session-actions {
         display: flex;
+        gap: 0.6rem;
+      }
+      .credentials-form {
+        display: flex;
+        flex-direction: column;
         gap: 0.5rem;
       }
-      .btn-continue {
-        background: #007c75;
-        color: #fff;
-        border: 0;
-        padding: 0.5rem 0.8rem;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 0.85rem;
-      }
-      .btn-signout {
-        background: transparent;
-        color: #b42318;
-        border: 1px solid #b42318;
-        padding: 0.5rem 0.8rem;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 0.85rem;
-      }
-      .login-shell label {
-        display: grid;
-        gap: 0.4rem;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      .login-shell input {
-        padding: 0.8rem 1rem;
-        border: 1px solid #c9d8df;
-        border-radius: 8px;
-        font-size: 1rem;
-        transition: border-color 0.2s;
-      }
-      .login-shell input:focus {
-        outline: none;
-        border-color: #007c75;
-        box-shadow: 0 0 0 3px rgba(0,124,117,0.15);
-      }
-      .login-shell button[type="submit"] {
-        padding: 0.95rem;
-        background: #007c75;
-        color: #fff;
-        border: 0;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      .login-shell button[type="submit"]:hover:not(:disabled) {
-        background: #005f5a;
-      }
-      .login-shell button[type="submit"]:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .input-with-action {
-        display: flex;
-        position: relative;
-        align-items: center;
-      }
-      .input-with-action input {
+      .full-width {
         width: 100%;
-        padding-right: 4.8rem;
       }
-      .btn-peek {
-        position: absolute;
-        right: 0.5rem;
-        background: #eef3f5;
-        border: 1px solid #c9d8df;
-        border-radius: 6px;
-        padding: 0.35rem 0.65rem;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #0b3c49;
-        cursor: pointer;
+      .submit-button {
+        width: 100%;
+        padding: 0.85rem !important;
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        border-radius: 10px !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
       }
-      .btn-peek:hover {
-        background: #dbe7ec;
+      .button-spinner {
+        display: inline-block;
       }
-      .error {
-        color: #b42318;
-        font-weight: 600;
-        font-size: 0.9rem;
-        margin: 0;
-      }
-      .demo-hint {
-        color: #627b87;
-        font-size: 0.8rem;
-        text-align: center;
-      }
-      @media (max-width: 860px) {
+      @media (max-width: 900px) {
         .login-shell {
           grid-template-columns: 1fr;
-          padding: 2rem;
-          gap: 2rem;
+          padding: 2.5rem 1.5rem;
+          gap: 2.5rem;
+        }
+        .brand-panel {
+          max-width: 100%;
         }
       }
     `,
@@ -374,6 +418,8 @@ export class LoginComponent {
 
   submit(): void {
     if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.toast.warning('Please fill in your credentials to sign in.');
       return;
     }
 

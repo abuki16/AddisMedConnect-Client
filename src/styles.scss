@@ -1,1 +1,44 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global Application Styles & Angular Material Theme */
+@import '@angular/material/prebuilt-themes/azure-blue.css';
+
+/* Angular Material Snackbar Enhancements */
+.mat-mdc-snack-bar-container {
+  &.snack-success {
+    --mdc-snackbar-container-color: #064e3b;
+    --mdc-snackbar-supporting-text-color: #ecfdf5;
+    --mat-snack-bar-button-color: #a7f3d0;
+    box-shadow: 0 10px 25px rgba(6, 78, 59, 0.4);
+    border-left: 4px solid #10b981;
+  }
+
+  &.snack-error {
+    --mdc-snackbar-container-color: #7f1d1d;
+    --mdc-snackbar-supporting-text-color: #fef2f2;
+    --mat-snack-bar-button-color: #fecaca;
+    box-shadow: 0 10px 25px rgba(127, 29, 29, 0.4);
+    border-left: 4px solid #ef4444;
+  }
+
+  &.snack-warning {
+    --mdc-snackbar-container-color: #78350f;
+    --mdc-snackbar-supporting-text-color: #fffbeb;
+    --mat-snack-bar-button-color: #fde68a;
+    box-shadow: 0 10px 25px rgba(120, 53, 15, 0.4);
+    border-left: 4px solid #f59e0b;
+  }
+
+  &.snack-info {
+    --mdc-snackbar-container-color: #0c4a6e;
+    --mdc-snackbar-supporting-text-color: #f0f9ff;
+    --mat-snack-bar-button-color: #bae6fd;
+    box-shadow: 0 10px 25px rgba(12, 74, 110, 0.4);
+    border-left: 4px solid #0284c7;
+  }
+
+  .mdc-snackbar__surface {
+    border-radius: 10px !important;
+    padding: 6px 14px !important;
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+}

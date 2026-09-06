@@ -1,94 +1,112 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import {
+  MatSnackBar,
+  MatSnackBarConfig,
+  MatSnackBarRef,
+  TextOnlySnackBar,
+} from '@angular/material/snack-bar';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
-
-export interface ToastMessage {
-  id: number;
-  message: string;
-  type: ToastType;
-  duration: number;
-}
 
 @Injectable({
   providedIn: 'root',
 })
 export class ToastService {
-  private nextId = 1;
-  private readonly toastsSignal = signal<ToastMessage[]>([]);
+  private snackBar = inject(MatSnackBar);
 
   /**
-   * Read-only reactive signal of all active toast notifications.
-   */
-  public readonly toasts = computed(() => this.toastsSignal());
-
-  /**
-   * Display a new toast notification.
+   * Display an Angular Material snackbar notification.
    */
   public show(
     message: string,
     type: ToastType = 'info',
     duration = 4500,
-  ): number {
-    const id = this.nextId++;
-    const item: ToastMessage = {
-      id,
-      message,
-      type,
+    action = '✕',
+  ): MatSnackBarRef<TextOnlySnackBar> {
+    const config: MatSnackBarConfig = {
       duration,
+      horizontalPosition: 'end',
+      verticalPosition: 'top',
+      panelClass: [
+        'mat-mdc-snack-bar-container',
+        `snack-${type}`,
+      ],
     };
 
-    this.toastsSignal.update((items) => [...items, item]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        this.dismiss(id);
-      }, duration);
+    let prefix = '';
+    switch (type) {
+      case 'success':
+        prefix = '✅ ';
+        break;
+      case 'error':
+        prefix = '🚨 ';
+        break;
+      case 'warning':
+        prefix = '⚠️ ';
+        break;
+      case 'info':
+        prefix = 'ℹ️ ';
+        break;
     }
 
-    return id;
-  }
-
-  /**
-   * Convenience method to show a success toast.
-   */
-  public success(message: string, duration = 4500): number {
-    return this.show(message, 'success', duration);
-  }
-
-  /**
-   * Convenience method to show an error toast.
-   */
-  public error(message: string, duration = 5500): number {
-    return this.show(message, 'error', duration);
-  }
-
-  /**
-   * Convenience method to show an informational toast.
-   */
-  public info(message: string, duration = 4500): number {
-    return this.show(message, 'info', duration);
-  }
-
-  /**
-   * Convenience method to show a warning toast.
-   */
-  public warning(message: string, duration = 5000): number {
-    return this.show(message, 'warning', duration);
-  }
-
-  /**
-   * Dismiss a specific toast notification by ID.
-   */
-  public dismiss(id: number): void {
-    this.toastsSignal.update((items) =>
-      items.filter((item) => item.id !== id),
+    return this.snackBar.open(
+      `${prefix}${message}`,
+      action,
+      config,
     );
   }
 
   /**
-   * Clear all active toasts immediately.
+   * Show an Angular Material success snackbar.
+   */
+  public success(
+    message: string,
+    duration = 4500,
+  ): MatSnackBarRef<TextOnlySnackBar> {
+    return this.show(message, 'success', duration);
+  }
+
+  /**
+   * Show an Angular Material error snackbar.
+   */
+  public error(
+    message: string,
+    duration = 5500,
+  ): MatSnackBarRef<TextOnlySnackBar> {
+    return this.show(message, 'error', duration);
+  }
+
+  /**
+   * Show an Angular Material info snackbar.
+   */
+  public info(
+    message: string,
+    duration = 4500,
+  ): MatSnackBarRef<TextOnlySnackBar> {
+    return this.show(message, 'info', duration);
+  }
+
+  /**
+   * Show an Angular Material warning snackbar.
+   */
+  public warning(
+    message: string,
+    duration = 5000,
+  ): MatSnackBarRef<TextOnlySnackBar> {
+    return this.show(message, 'warning', duration);
+  }
+
+  /**
+   * Dismiss the currently open snackbar.
+   */
+  public dismiss(): void {
+    this.snackBar.dismiss();
+  }
+
+  /**
+   * Clear active snackbars.
    */
   public clear(): void {
-    this.toastsSignal.set([]);
+    this.snackBar.dismiss();
   }
 }

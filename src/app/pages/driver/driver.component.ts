@@ -364,5 +364,11 @@ export class DriverComponent implements OnInit, OnDestroy {
 
   acknowledgeAlert(): void {
     this.newMissionAlert = false;
+    this.toast.info('Emergency mission acknowledged. Destination route loaded.');
+  }
+
+  signOut(): void {
+    this.auth.logout();
+    this.toast.info('You have been signed out.');
   }
 }

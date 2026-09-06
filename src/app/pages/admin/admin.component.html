@@ -23,7 +23,13 @@
         <strong>{{ auth.user()?.fullName }}</strong>
         <small>{{ auth.user()?.role }}</small>
       </div>
-      <button type="button" class="btn-signout" (click)="auth.logout()">Sign out</button>
+      <button
+        type="button"
+        class="btn-signout"
+        (click)="signOut()"
+      >
+        Sign out
+      </button>
     </div>
   </aside>
 
@@ -35,7 +41,13 @@
         <p class="sub-header">Live system telemetry, hospital capacities, and active emergency missions.</p>
       </div>
       <div class="header-buttons">
-        <button type="button" class="btn-refresh" (click)="load()">🔄 Refresh Data</button>
+        <button
+          type="button"
+          class="btn-refresh"
+          (click)="load(true)"
+        >
+          🔄 Refresh Data
+        </button>
       </div>
     </header>
 
