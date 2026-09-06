@@ -1,24 +1,12 @@
 import { environment } from '../../environments/environment';
 
-function resolveApiUrl(): string {
-  if (typeof window !== 'undefined' && window.location) {
-    if (window.location.port === '4200') {
-      return 'http://localhost:5057/api';
-    }
-    return `${window.location.origin}/api`;
-  }
-  return environment.apiUrl || 'http://localhost:5057/api';
-}
+/**
+ * Base API URL endpoint resolved from the active environment configuration.
+ */
+export const apiUrl: string = environment.apiUrl || '/api';
 
-function resolveHubUrl(): string {
-  if (typeof window !== 'undefined' && window.location) {
-    if (window.location.port === '4200') {
-      return 'http://localhost:5057/hubs';
-    }
-    return `${window.location.origin}/hubs`;
-  }
-  return environment.hubUrl || 'http://localhost:5057/hubs';
-}
+/**
+ * Base SignalR Hubs URL endpoint resolved from the active environment configuration.
+ */
+export const hubUrl: string = environment.hubUrl || '/hubs';
 
-export const apiUrl = resolveApiUrl();
-export const hubUrl = resolveHubUrl();

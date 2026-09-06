@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -10,32 +10,44 @@ import {
 } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../core/auth.service';
+import { ToastService } from '../../core/toast.service';
 import { apiUrl } from '../../core/api.config';
 
 // Ethiopian phone validator: e.g. +251911223344 or 0911223344 or 0711223344
 const ethiopianPhonePattern = /^(?:\+251|0)[79]\d{8}$/;
+
 // Name validator: at least 2 characters, alphabetic & common punctuation
 const namePattern = /^[\p{L}'-]{2,}$/u;
 
-function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+function passwordMatchValidator(
+  control: AbstractControl,
+): ValidationErrors | null {
   const password = control.get('password')?.value;
   const confirmPassword = control.get('confirmPassword')?.value;
   if (!password || !confirmPassword) return null;
-  return password === confirmPassword ? null : { passwordMismatch: true };
+  return password === confirmPassword
+    ? null
+    : { passwordMismatch: true };
 }
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+  ],
   templateUrl: './user-management.component.html',
   styleUrl: './user-management.component.scss',
 })
 export class UserManagementComponent implements OnInit {
+  private toast = inject(ToastService);
+  private http = inject(HttpClient);
+  private fb = inject(FormBuilder);
+  public auth = inject(AuthService);
+
   users: any[] = [];
   hospitals: any[] = [];
   editingId = '';
-  message = '';
-  isErrorMessage = false;
   saving = false;
 
   readonly roles = [
@@ -49,30 +61,48 @@ export class UserManagementComponent implements OnInit {
   readonly passwordValidators = [
     Validators.required,
     Validators.minLength(8),
-    Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,}$/),
+    Validators.pattern(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,}$/,
+    ),
   ];
 
-  form: FormGroup;
-
-  constructor(
-    public auth: AuthService,
-    private http: HttpClient,
-    private fb: FormBuilder,
-  ) {
-    this.form = fb.group(
-      {
-        firstName: ['', [Validators.required, Validators.pattern(namePattern)]],
-        lastName: ['', [Validators.required, Validators.pattern(namePattern)]],
-        email: ['', [Validators.required, Validators.email]],
-        phoneNumber: ['', [Validators.required, Validators.pattern(ethiopianPhonePattern)]],
-        role: ['', Validators.required],
-        hospitalId: [''],
-        password: ['', this.passwordValidators],
-        confirmPassword: ['', Validators.required],
-      },
-      { validators: passwordMatchValidator },
-    );
-  }
+  form: FormGroup = this.fb.group(
+    {
+      firstName: [
+        '',
+        [
+          Validators.required,
+          Validators.pattern(namePattern),
+        ],
+      ],
+      lastName: [
+        '',
+        [
+          Validators.required,
+          Validators.pattern(namePattern),
+        ],
+      ],
+      email: [
+        '',
+        [
+          Validators.required,
+          Validators.email,
+        ],
+      ],
+      phoneNumber: [
+        '',
+        [
+          Validators.required,
+          Validators.pattern(ethiopianPhonePattern),
+        ],
+      ],
+      role: ['', Validators.required],
+      hospitalId: [''],
+      password: ['', this.passwordValidators],
+      confirmPassword: ['', Validators.required],
+    },
+    { validators: passwordMatchValidator },
+  );
 
   ngOnInit() {
     this.load();
@@ -93,12 +123,14 @@ export class UserManagementComponent implements OnInit {
     });
   }
 
-  load() {
+  load(): void {
     this.http.get<any[]>(`${apiUrl}/auth/users`).subscribe({
-      next: (x) => (this.users = x || []),
+      next: (x) => {
+        this.users = x || [];
+      },
       error: (e) => {
-        this.message = e.error?.message || 'Could not load users.';
-        this.isErrorMessage = true;
+        const err = e.error?.message || 'Could not load users.';
+        this.toast.error(err);
       },
     });
   }
@@ -119,7 +151,9 @@ export class UserManagementComponent implements OnInit {
     );
   }
 
-  checkPassRule(rule: 'length' | 'upper' | 'lower' | 'number' | 'special'): boolean {
+  checkPassRule(
+    rule: 'length' | 'upper' | 'lower' | 'number' | 'special',
+  ): boolean {
     const val = this.form.get('password')?.value || '';
     switch (rule) {
       case 'length':
@@ -135,14 +169,12 @@ export class UserManagementComponent implements OnInit {
     }
   }
 
-  edit(user: any) {
+  edit(user: any): void {
     const names = (user.fullName || '').trim().split(/\s+/);
     const firstName = names.shift() || '';
     const lastName = names.join(' ');
 
     this.editingId = user.id;
-    this.message = '';
-    this.isErrorMessage = false;
 
     this.form.patchValue({
       firstName,
@@ -161,12 +193,8 @@ export class UserManagementComponent implements OnInit {
     this.form.controls['confirmPassword'].updateValueAndValidity();
   }
 
-  reset(clearMessage = true) {
+  reset(): void {
     this.editingId = '';
-    if (clearMessage) {
-      this.message = '';
-      this.isErrorMessage = false;
-    }
     this.form.reset({
       role: '',
       hospitalId: '',
@@ -178,33 +206,35 @@ export class UserManagementComponent implements OnInit {
       confirmPassword: '',
     });
 
-    this.form.controls['password'].setValidators(this.passwordValidators);
-    this.form.controls['confirmPassword'].setValidators([Validators.required]);
+    this.form.controls['password'].setValidators(
+      this.passwordValidators,
+    );
+    this.form.controls['confirmPassword'].setValidators([
+      Validators.required,
+    ]);
     this.form.controls['password'].updateValueAndValidity();
     this.form.controls['confirmPassword'].updateValueAndValidity();
   }
 
-  save() {
+  save(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.message = 'Please correct all highlighted validation errors before saving.';
-      this.isErrorMessage = true;
+      this.toast.warning(
+        'Please correct all highlighted validation errors before saving.',
+      );
       return;
     }
 
     const value = this.form.getRawValue();
 
     if (!this.editingId && value.password !== value.confirmPassword) {
-      this.message = 'Passwords do not match.';
-      this.isErrorMessage = true;
+      this.toast.error('Passwords do not match.');
       return;
     }
 
     const hospitalId = value.hospitalId || null;
     const isEditing = !!this.editingId;
     this.saving = true;
-    this.message = '';
-    this.isErrorMessage = false;
 
     const request = isEditing
       ? this.http.put(`${apiUrl}/auth/users/${this.editingId}`, {
@@ -229,17 +259,16 @@ export class UserManagementComponent implements OnInit {
 
     request.subscribe({
       next: () => {
-        this.message = isEditing
+        const msg = isEditing
           ? `User "${value.firstName} ${value.lastName}" updated successfully.`
-          : `User "${value.firstName} ${value.lastName}" successfully registered with role ${value.role}.`;
-        this.isErrorMessage = false;
+          : `User "${value.firstName} ${value.lastName}" registered with role ${value.role}.`;
+        this.toast.success(msg);
         this.saving = false;
-        this.reset(false);
+        this.reset();
         this.load();
       },
       error: (e) => {
         this.saving = false;
-        this.isErrorMessage = true;
         const errorMsg = e.error?.message || e.error?.title || '';
         if (
           e.status === 401 ||
@@ -247,28 +276,36 @@ export class UserManagementComponent implements OnInit {
             (errorMsg.toLowerCase().includes('credential') ||
               errorMsg.toLowerCase().includes('invalid')))
         ) {
-          this.message = 'Unable to register user: invalid input or duplicate account.';
+          this.toast.error(
+            'Unable to register user: invalid input or duplicate account.',
+          );
         } else {
-          this.message =
+          this.toast.error(
             errorMsg ||
-            e.error?.errors?.[Object.keys(e.error?.errors || {})[0]]?.[0] ||
-            'Could not save user.';
+              e.error?.errors?.[Object.keys(e.error?.errors || {})[0]]?.[0] ||
+              'Could not save user.',
+          );
         }
       },
     });
   }
 
-  remove(user: any) {
-    if (!confirm(`Are you sure you want to delete user "${user.fullName}" (${user.role})?`)) return;
+  remove(user: any): void {
+    if (
+      !confirm(
+        `Are you sure you want to delete user "${user.fullName}" (${user.role})?`,
+      )
+    ) {
+      return;
+    }
+
     this.http.delete(`${apiUrl}/auth/users/${user.id}`).subscribe({
       next: () => {
-        this.message = `User "${user.fullName}" deleted.`;
-        this.isErrorMessage = false;
+        this.toast.success(`User "${user.fullName}" deleted.`);
         this.load();
       },
       error: (e) => {
-        this.message = e.error?.message || 'Could not delete user.';
-        this.isErrorMessage = true;
+        this.toast.error(e.error?.message || 'Could not delete user.');
       },
     });
   }

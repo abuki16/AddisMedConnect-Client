@@ -1,10 +1,21 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth.service';
+import { ToastService } from '../../../core/toast.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { ResourceStore, Hospital, Ambulance, Bed } from '../../../Store/resource.store';
+import {
+  ResourceStore,
+  Hospital,
+  Ambulance,
+  Bed,
+} from '../../../Store/resource.store';
 import { apiUrl } from '../../../core/api.config';
 
 interface CapacityResult {
@@ -14,6 +25,7 @@ interface CapacityResult {
   distanceKm?: number;
   availableBedsCount?: number;
 }
+
 interface HospitalRecommendation {
   hospitalId: string;
   hospitalName: string;
@@ -34,6 +46,7 @@ interface HospitalRecommendation {
 })
 export class CreateCaseComponent implements OnInit {
   readonly resourceStore = inject(ResourceStore);
+  private toast = inject(ToastService);
 
   get hospitals(): Hospital[] {
     return this.resourceStore.hospitals();
@@ -50,9 +63,6 @@ export class CreateCaseComponent implements OnInit {
   isSubmitting = false;
   isCheckingCapacity = false;
   isAssigning = false;
-
-  errorMessage = '';
-  assignmentSuccessMessage = '';
 
   pendingTriageCount: number = 0;
 
@@ -296,18 +306,20 @@ export class CreateCaseComponent implements OnInit {
   onCreateCase(): void {
     if (this.intakeForm.invalid) {
       this.intakeForm.markAllAsTouched();
-      this.errorMessage = 'Please fill out all required fields correctly.';
+      this.toast.warning(
+        'Please fill out all required fields correctly.',
+      );
       return;
     }
 
     if (this.capacityWarning && !this.capacityWarning.isAvailable) {
-      this.errorMessage = 'Selected hospital ward is full. Please choose an alternative hospital.';
+      this.toast.error(
+        'Selected hospital ward is full. Please choose an alternative hospital.',
+      );
       return;
     }
 
     this.isSubmitting = true;
-    this.errorMessage = '';
-    this.assignmentSuccessMessage = '';
 
     const formValues = this.intakeForm.getRawValue();
     delete formValues.isUnknownPatient;
@@ -315,14 +327,21 @@ export class CreateCaseComponent implements OnInit {
     this.http.post(`${apiUrl}/emergency-cases`, formValues).subscribe({
       next: (response: any) => {
         this.isSubmitting = false;
-        this.createdIncidentNumber = response?.incidentNumber || response?.IncidentNumber;
+        this.createdIncidentNumber =
+          response?.incidentNumber || response?.IncidentNumber;
         this.createdCaseDetails = response;
         this.pendingTriageCount++;
+        this.toast.success(
+          `Emergency case registered: Incident #${this.createdIncidentNumber}`,
+        );
       },
       error: (err) => {
         this.isSubmitting = false;
-        this.errorMessage =
-          err.error?.message || err.error?.title || 'Failed to register emergency case.';
+        const msg =
+          err.error?.message ||
+          err.error?.title ||
+          'Failed to register emergency case.';
+        this.toast.error(msg);
       },
     });
   }
@@ -331,8 +350,10 @@ export class CreateCaseComponent implements OnInit {
     this.createdIncidentNumber = null;
     this.createdCaseDetails = null;
     this.capacityWarning = null;
-    this.assignmentSuccessMessage = '';
-    this.intakeForm.reset({ wardType: 'Emergency', isUnknownPatient: false });
+    this.intakeForm.reset({
+      wardType: 'Emergency',
+      isUnknownPatient: false,
+    });
     this.assignmentForm.reset();
   }
 }

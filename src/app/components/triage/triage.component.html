@@ -47,16 +47,6 @@
     <button class="btn-secondary-link" (click)="loadData()">🔄 Refresh Queue</button>
   </div>
 
-  <!-- ERROR & SUCCESS BANNERS -->
-  <div class="alert-error" *ngIf="errorMessage">⚠️ {{ errorMessage }}</div>
-
-  <div class="success-card" *ngIf="successMessage">
-    <div class="success-content">
-      <h3>✅ Success!</h3>
-      <p class="success-message-text">{{ successMessage }}</p>
-    </div>
-  </div>
-
   <!-- MAIN WORKSPACE -->
   <div class="workspace-grid">
     <!-- LEFT COLUMN: Active Queue List -->

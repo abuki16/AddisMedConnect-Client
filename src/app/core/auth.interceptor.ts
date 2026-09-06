@@ -1,16 +1,21 @@
 import { HttpInterceptorFn } from '@angular/common/http';
+import { apiUrl } from './api.config';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const token = sessionStorage.getItem('amc_access_token') || localStorage.getItem('amc_access_token');
+  const token =
+    sessionStorage.getItem('amc_access_token') ||
+    localStorage.getItem('amc_access_token');
 
-  // Attach token if token exists and it's either a relative API request or targets our backend
-  const isApiRequest = req.url.startsWith('/api') || req.url.startsWith('http://localhost:5057');
+  // Attach token if token exists and request matches relative api or configured apiUrl
+  const isApiRequest =
+    req.url.startsWith('/api') ||
+    (!!apiUrl && req.url.startsWith(apiUrl));
 
   if (token && isApiRequest) {
     const cloned = req.clone({
       setHeaders: {
-        Authorization: `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     });
     return next(cloned);
   }

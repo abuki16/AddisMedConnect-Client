@@ -1,10 +1,18 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy, NgZone } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  OnInit,
+  OnDestroy,
+  NgZone,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import * as signalR from '@microsoft/signalr';
 import { AuthService } from '../../core/auth.service';
+import { ToastService } from '../../core/toast.service';
 import { apiUrl, hubUrl } from '../../core/api.config';
 
 export interface EmergencyCase {
@@ -41,34 +49,31 @@ export interface Bed {
   styleUrls: ['./triage.component.scss'],
 })
 export class TriageComponent implements OnInit, OnDestroy {
+  public auth = inject(AuthService);
+  private toast = inject(ToastService);
+  private http = inject(HttpClient);
+  private ngZone = inject(NgZone);
+  private changeDetector = inject(ChangeDetectorRef);
+
   pendingCases: EmergencyCase[] = [];
   availableBeds: Bed[] = [];
   selectedCase: EmergencyCase | null = null;
 
-  pendingTriageCount: number = 0;
-  assessmentPriority: string = 'Yellow';
-  confirmedBedId: string = '';
+  pendingTriageCount = 0;
+  assessmentPriority = 'Yellow';
+  confirmedBedId = '';
 
-  loading: boolean = false;
-  isRealtimeConnected: boolean = false;
-  errorMessage: string = '';
-  successMessage: string = '';
+  loading = false;
+  isRealtimeConnected = false;
 
-  hospitalId: string = '';
-  isAdmin: boolean = false;
+  hospitalId = '';
+  isAdmin = false;
   hospitals: any[] = [];
 
   private apiUrl = apiUrl;
   private hubUrl = `${hubUrl}/emergency`;
   private hubConnection!: signalR.HubConnection;
   private caseRequestId = 0;
-
-  constructor(
-    private http: HttpClient,
-    private ngZone: NgZone,
-    public auth: AuthService,
-    private changeDetector: ChangeDetectorRef,
-  ) {}
 
   ngOnInit(): void {
     const user = this.auth.user();
@@ -88,7 +93,9 @@ export class TriageComponent implements OnInit, OnDestroy {
       });
     } else {
       if (!this.hospitalId) {
-        this.errorMessage = 'Your account is not assigned to a hospital. Contact an administrator.';
+        this.toast.error(
+          'Your account is not assigned to a hospital. Contact an administrator.',
+        );
         return;
       }
       this.startTriageStation();
@@ -203,11 +210,12 @@ export class TriageComponent implements OnInit, OnDestroy {
   loadEmergencyCases(): void {
     const requestId = ++this.caseRequestId;
     this.loading = true;
-    this.errorMessage = '';
     this.changeDetector.detectChanges();
 
     this.http
-      .get<EmergencyCase[]>(`${this.apiUrl}/emergency-cases/hospital/${this.hospitalId}`)
+      .get<EmergencyCase[]>(
+        `${this.apiUrl}/emergency-cases/hospital/${this.hospitalId}`,
+      )
       .subscribe({
         next: (data) => {
           this.render(() => {
@@ -217,17 +225,25 @@ export class TriageComponent implements OnInit, OnDestroy {
             this.pendingCases = list
               .map((c) => this.normalizeCase(c))
               .sort((a, b) => {
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                return (
+                  new Date(b.createdAt).getTime() -
+                  new Date(a.createdAt).getTime()
+                );
               });
             this.loading = false;
-            console.log('Processed pendingCases length:', this.pendingCases.length);
+            console.log(
+              'Processed pendingCases length:',
+              this.pendingCases.length,
+            );
           });
         },
         error: (err) => {
           this.render(() => {
             if (requestId !== this.caseRequestId) return;
             console.error('Failed to load emergency cases for hospital:', err);
-            this.errorMessage = 'Failed to load incoming cases for this facility.';
+            this.toast.error(
+              'Failed to load incoming cases for this facility.',
+            );
             this.loading = false;
           });
         },
@@ -254,10 +270,10 @@ export class TriageComponent implements OnInit, OnDestroy {
     }
     this.selectedCase = emergencyCase;
     this.assessmentPriority =
-      typeof emergencyCase.priority === 'string' ? emergencyCase.priority : 'Yellow';
+      typeof emergencyCase.priority === 'string'
+        ? emergencyCase.priority
+        : 'Yellow';
     this.confirmedBedId = emergencyCase.assignedBedId || '';
-    this.successMessage = '';
-    this.errorMessage = '';
 
     if (emergencyCase.targetHospitalId) {
       this.loadHospitalBeds(emergencyCase.targetHospitalId);
@@ -265,21 +281,23 @@ export class TriageComponent implements OnInit, OnDestroy {
   }
 
   loadHospitalBeds(hospitalId: string): void {
-    this.http.get<Bed[]>(`${this.apiUrl}/hospitals/${hospitalId}/beds`).subscribe({
-      next: (beds) => {
-        this.ngZone.run(() => {
-          this.availableBeds = (beds || []).filter(
-            (b) =>
-              b.status === 0 ||
-              String(b.status).toLowerCase() === 'available' ||
-              b.id === this.selectedCase?.assignedBedId,
-          );
-        });
-      },
-      error: (err) => {
-        console.error('Could not load hospital beds', err);
-      },
-    });
+    this.http
+      .get<Bed[]>(`${this.apiUrl}/hospitals/${hospitalId}/beds`)
+      .subscribe({
+        next: (beds) => {
+          this.ngZone.run(() => {
+            this.availableBeds = (beds || []).filter(
+              (b) =>
+                b.status === 0 ||
+                String(b.status).toLowerCase() === 'available' ||
+                b.id === this.selectedCase?.assignedBedId,
+            );
+          });
+        },
+        error: (err) => {
+          console.error('Could not load hospital beds', err);
+        },
+      });
   }
 
   quickApprove(emergencyCase: EmergencyCase, event: Event): void {
@@ -291,24 +309,33 @@ export class TriageComponent implements OnInit, OnDestroy {
   submitTriage(): void {
     if (!this.selectedCase) return;
 
+    const incidentNum = this.selectedCase.incidentNumber;
     const payload = {
       priority: this.assessmentPriority,
       confirmedBedId: this.confirmedBedId || null,
     };
 
     this.http
-      .post(`${this.apiUrl}/emergency-cases/${this.selectedCase.incidentNumber}/triage`, payload)
+      .post(
+        `${this.apiUrl}/emergency-cases/${incidentNum}/triage`,
+        payload,
+      )
       .subscribe({
         next: () => {
           this.ngZone.run(() => {
-            this.successMessage = `Triage successfully completed & bed occupied for incident ${this.selectedCase?.incidentNumber}!`;
+            this.toast.success(
+              `Triage completed & bed confirmed for incident ${incidentNum}!`,
+            );
             this.selectedCase = null;
             this.loadData();
           });
         },
         error: (err) => {
           this.ngZone.run(() => {
-            this.errorMessage = err.error?.message || 'Failed to submit triage assessment.';
+            const msg =
+              err.error?.message ||
+              'Failed to submit triage assessment.';
+            this.toast.error(msg);
           });
         },
       });

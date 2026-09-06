@@ -1,8 +1,9 @@
-import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../core/auth.service';
+import { ToastService } from '../../core/toast.service';
 import { apiUrl } from '../../core/api.config';
 
 export interface AdmittedCase {
@@ -23,11 +24,15 @@ export interface AdmittedCase {
   styleUrl: './discharge-clerk.component.scss',
 })
 export class DischargeClerkComponent implements OnInit {
+  public auth = inject(AuthService);
+  private toast = inject(ToastService);
+  private http = inject(HttpClient);
+  private ngZone = inject(NgZone);
+  private changeDetector = inject(ChangeDetectorRef);
+
   cases: AdmittedCase[] = [];
   hospitals: any[] = [];
   selectedHospitalId = '';
-  message = '';
-  errorMessage = '';
   loading = true;
   dischargingIncident = '';
 
@@ -46,13 +51,6 @@ export class DischargeClerkComponent implements OnInit {
   ];
 
   private loadRequestId = 0;
-
-  constructor(
-    public auth: AuthService,
-    private http: HttpClient,
-    private ngZone: NgZone,
-    private changeDetector: ChangeDetectorRef,
-  ) {}
 
   ngOnInit(): void {
     const user = this.auth.user();
@@ -75,22 +73,25 @@ export class DischargeClerkComponent implements OnInit {
   }
 
   load(): void {
-    const hospitalId = this.selectedHospitalId || this.auth.user()?.hospitalId;
+    const hospitalId =
+      this.selectedHospitalId || this.auth.user()?.hospitalId;
+
     if (!hospitalId) {
       this.render(() => {
         this.loading = false;
-        this.errorMessage = 'Your account is not assigned to a hospital.';
+        this.toast.error('Your account is not assigned to a hospital.');
       });
       return;
     }
 
     const requestId = ++this.loadRequestId;
     this.loading = true;
-    this.errorMessage = '';
     this.changeDetector.detectChanges();
 
     this.http
-      .get<AdmittedCase[]>(`${apiUrl}/emergency-cases/hospital/${hospitalId}/active`)
+      .get<AdmittedCase[]>(
+        `${apiUrl}/emergency-cases/hospital/${hospitalId}/active`,
+      )
       .subscribe({
         next: (rows) => {
           this.render(() => {
@@ -98,7 +99,8 @@ export class DischargeClerkComponent implements OnInit {
             const data = rows || [];
             this.cases = data.filter(
               (caseItem) =>
-                (caseItem.status === 'Admitted' || caseItem.status === 'Dispatched') &&
+                (caseItem.status === 'Admitted' ||
+                  caseItem.status === 'Dispatched') &&
                 !!caseItem.assignedBedId,
             );
             this.loading = false;
@@ -108,7 +110,9 @@ export class DischargeClerkComponent implements OnInit {
           this.render(() => {
             if (requestId !== this.loadRequestId) return;
             this.loading = false;
-            this.errorMessage = error.error?.message || 'Could not load admitted cases.';
+            const msg =
+              error.error?.message || 'Could not load admitted cases.';
+            this.toast.error(msg);
           });
         },
       });
@@ -117,7 +121,9 @@ export class DischargeClerkComponent implements OnInit {
   openDischargeModal(caseItem: AdmittedCase): void {
     this.selectedCaseForDischarge = caseItem;
     this.dischargeDisposition = 'Discharged Home (Recovered)';
-    this.dischargeNotes = `Patient ${caseItem.patientName} evaluated; condition stabilized. Bed ${caseItem.bedNumber || 'held'} cleared for emergency intake.`;
+    this.dischargeNotes = `Patient ${caseItem.patientName} evaluated; condition stabilized. Bed ${
+      caseItem.bedNumber || 'held'
+    } cleared for emergency intake.`;
     this.referralHospitalName = '';
   }
 
@@ -130,19 +136,24 @@ export class DischargeClerkComponent implements OnInit {
 
     const caseItem = this.selectedCaseForDischarge;
     this.dischargingIncident = caseItem.incidentNumber;
-    this.message = '';
-    this.errorMessage = '';
     this.changeDetector.detectChanges();
 
     this.http
-      .post<void>(`${apiUrl}/emergency-cases/${caseItem.incidentNumber}/discharge`, {
-        disposition: this.dischargeDisposition,
-        notes: this.dischargeNotes,
-      })
+      .post<void>(
+        `${apiUrl}/emergency-cases/${caseItem.incidentNumber}/discharge`,
+        {
+          disposition: this.dischargeDisposition,
+          notes: this.dischargeNotes,
+        },
+      )
       .subscribe({
         next: () => {
           this.render(() => {
-            this.message = `✅ Patient ${caseItem.patientName} (${caseItem.incidentNumber}) discharged. Bed ${caseItem.bedNumber || 'assignment'} is now FREE & AVAILABLE for incoming emergencies!`;
+            this.toast.success(
+              `Patient ${caseItem.patientName} (${caseItem.incidentNumber}) discharged. Bed ${
+                caseItem.bedNumber || 'assignment'
+              } is now available!`,
+            );
             this.dischargingIncident = '';
             this.selectedCaseForDischarge = null;
             this.load();
@@ -151,7 +162,9 @@ export class DischargeClerkComponent implements OnInit {
         error: (error) => {
           this.render(() => {
             this.dischargingIncident = '';
-            this.errorMessage = error.error?.message || 'Could not close this admission.';
+            const msg =
+              error.error?.message || 'Could not close this admission.';
+            this.toast.error(msg);
           });
         },
       });

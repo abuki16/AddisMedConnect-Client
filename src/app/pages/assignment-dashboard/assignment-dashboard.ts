@@ -1,23 +1,39 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ChangeDetectorRef,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { ResourceStore, Ambulance, Bed } from '../../Store/resource.store';
 import { BedSignalRService } from '../../services/bed-signalr.service';
+import { ToastService } from '../../core/toast.service';
 import { apiUrl } from '../../core/api.config';
 
 @Component({
   selector: 'app-assignment-dashboard',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+  ],
   templateUrl: './assignment-dashboard.html',
   styleUrls: ['./assignment-dashboard.scss'],
 })
 export class AssignmentDashboardComponent implements OnInit, OnDestroy {
   readonly resourceStore = inject(ResourceStore);
   private bedSignalRService = inject(BedSignalRService);
+  private toast = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
   private signalRSub!: Subscription;
 
@@ -43,8 +59,7 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
   assignmentForm!: FormGroup;
   isAssigning = false;
   isLoadingCase = true;
-  errorMessage = '';
-  successMessage = '';
+  isDispatched = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -57,7 +72,7 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
     this.incidentNumber = this.route.snapshot.paramMap.get('incidentNumber');
 
     if (!this.incidentNumber) {
-      this.errorMessage = 'No active incident number found.';
+      this.toast.error('No active incident number found.');
       this.isLoadingCase = false;
       return;
     }
@@ -100,21 +115,27 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (caseData) => {
           this.isLoadingCase = false;
-          const hospitalId = caseData?.targetHospitalId || caseData?.TargetHospitalId;
-          this.targetHospitalName = caseData?.targetHospitalName || caseData?.TargetHospitalName || '';
+          const hospitalId =
+            caseData?.targetHospitalId || caseData?.TargetHospitalId;
+          this.targetHospitalName =
+            caseData?.targetHospitalName ||
+            caseData?.TargetHospitalName ||
+            '';
 
           if (hospitalId) {
             this.targetHospitalId = hospitalId;
             this.bedSignalRService.joinHospitalGroup(hospitalId);
             this.resourceStore.loadAvailableBedsForHospital(hospitalId);
           } else {
-            this.errorMessage = 'Could not determine the target hospital for this incident.';
+            this.toast.warning(
+              'Could not determine the target hospital for this incident.',
+            );
           }
           this.cdr.detectChanges();
         },
         error: (err) => {
           this.isLoadingCase = false;
-          this.errorMessage = 'Failed to load incident details from server.';
+          this.toast.error('Failed to load incident details from server.');
           console.error(err);
           this.cdr.detectChanges();
         },
@@ -128,7 +149,6 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.isAssigning = true;
-    this.errorMessage = '';
 
     this.http
       .post(
@@ -138,10 +158,15 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.isAssigning = false;
-          this.successMessage = `Resources successfully assigned & dispatched to Incident #${this.incidentNumber}! Bed held as RESERVED, Ambulance DISPATCHED.`;
+          this.isDispatched = true;
+          this.toast.success(
+            `Resources successfully assigned & dispatched to Incident #${this.incidentNumber}! Bed held as RESERVED, Ambulance DISPATCHED.`,
+          );
 
           if (this.targetHospitalId) {
-            this.resourceStore.loadAvailableBedsForHospital(this.targetHospitalId);
+            this.resourceStore.loadAvailableBedsForHospital(
+              this.targetHospitalId,
+            );
           }
           this.resourceStore.loadHospitals();
           this.resourceStore.loadAmbulances();
@@ -150,7 +175,9 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.isAssigning = false;
-          this.errorMessage = err.error?.message || 'Failed to assign resources.';
+          this.toast.error(
+            err.error?.message || 'Failed to assign resources.',
+          );
           this.cdr.detectChanges();
         },
       });

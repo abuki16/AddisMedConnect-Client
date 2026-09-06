@@ -1,10 +1,24 @@
-import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef, NgZone } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  ChangeDetectorRef,
+  NgZone,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import {
+  DomSanitizer,
+  SafeResourceUrl,
+} from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import * as signalR from '@microsoft/signalr';
 import { AuthService } from '../../core/auth.service';
-import { apiUrl, hubUrl } from '../../core/api.config';
+import { ToastService } from '../../core/toast.service';
+import {
+  apiUrl,
+  hubUrl,
+} from '../../core/api.config';
 
 export interface Coordinates {
   latitude: number;
@@ -22,9 +36,9 @@ export interface Coordinates {
   styleUrl: './driver.component.scss',
 })
 export class DriverComponent implements OnInit, OnDestroy {
+  private toast = inject(ToastService);
   data: any;
   ambulances: any[] = [];
-  message = '';
   location: Coordinates | null = null;
   locationUpdatedAt = '';
   liveTracking = false;
@@ -38,12 +52,42 @@ export class DriverComponent implements OnInit, OnDestroy {
 
   // Addis Ababa landmark coordinates for quick positioning & testing
   readonly addisLocations = [
-    { label: 'Tikur Anbessa Hospital (Lideta)', lat: 9.0182, lng: 38.7495, alt: 2355 },
-    { label: 'St. Paul Hospital (Gullele)', lat: 9.0664, lng: 38.7303, alt: 2420 },
-    { label: 'Bole Medhane Alem (Bole)', lat: 8.9953, lng: 38.7885, alt: 2320 },
-    { label: 'Mexico Square (Kirkos)', lat: 9.0105, lng: 38.7455, alt: 2340 },
-    { label: 'Megenagna Roundabout (Yeka)', lat: 9.0215, lng: 38.8021, alt: 2380 },
-    { label: 'Piazza Central (Arada)', lat: 9.0345, lng: 38.7525, alt: 2400 },
+    {
+      label: 'Tikur Anbessa Hospital (Lideta)',
+      lat: 9.0182,
+      lng: 38.7495,
+      alt: 2355,
+    },
+    {
+      label: 'St. Paul Hospital (Gullele)',
+      lat: 9.0664,
+      lng: 38.7303,
+      alt: 2420,
+    },
+    {
+      label: 'Bole Medhane Alem (Bole)',
+      lat: 8.9953,
+      lng: 38.7885,
+      alt: 2320,
+    },
+    {
+      label: 'Mexico Square (Kirkos)',
+      lat: 9.0105,
+      lng: 38.7455,
+      alt: 2340,
+    },
+    {
+      label: 'Megenagna Roundabout (Yeka)',
+      lat: 9.0215,
+      lng: 38.8021,
+      alt: 2380,
+    },
+    {
+      label: 'Piazza Central (Arada)',
+      lat: 9.0345,
+      lng: 38.7525,
+      alt: 2400,
+    },
   ];
 
   constructor(
@@ -76,38 +120,48 @@ export class DriverComponent implements OnInit, OnDestroy {
   }
 
   loadFleet(): void {
-    this.http.get<any[]>(`${apiUrl}/ambulances`).subscribe({
-      next: (rows) => {
-        this.ambulances = rows || [];
-        this.cdr.detectChanges();
-      },
-      error: () => (this.message = 'Could not load ambulance fleet.'),
-    });
+    this.http
+      .get<any[]>(`${apiUrl}/ambulances`)
+      .subscribe({
+        next: (rows) => {
+          this.ambulances = rows || [];
+          this.cdr.detectChanges();
+        },
+        error: () => this.toast.error('Could not load ambulance fleet.'),
+      });
   }
 
   loadDriverData(): void {
-    this.http.get<any>(`${apiUrl}/ambulances/mine`).subscribe({
-      next: (response) => {
-        this.data = response;
-        const ambulance = response.ambulance;
-        if (ambulance?.currentLatitude != null && ambulance?.currentLongitude != null) {
-          this.setLocation(
-            {
-              latitude: ambulance.currentLatitude,
-              longitude: ambulance.currentLongitude,
-              altitude: 2355,
-              isEstimatedAltitude: true,
-            },
-            ambulance.lastLocationUpdatedAt,
+    this.http
+      .get<any>(`${apiUrl}/ambulances/mine`)
+      .subscribe({
+        next: (response) => {
+          this.data = response;
+          const ambulance = response.ambulance;
+          if (
+            ambulance?.currentLatitude != null &&
+            ambulance?.currentLongitude != null
+          ) {
+            this.setLocation(
+              {
+                latitude: ambulance.currentLatitude,
+                longitude: ambulance.currentLongitude,
+                altitude: 2355,
+                isEstimatedAltitude: true,
+              },
+              ambulance.lastLocationUpdatedAt,
+            );
+          }
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          this.toast.error(
+            error.error?.message ||
+              'Could not load your ambulance assignment.',
           );
-        }
-        this.cdr.detectChanges();
-      },
-      error: (error) => {
-        this.message = error.error?.message || 'Could not load your ambulance assignment.';
-        this.cdr.detectChanges();
-      },
-    });
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   private initSignalR(): void {
@@ -127,15 +181,24 @@ export class DriverComponent implements OnInit, OnDestroy {
       .start()
       .then(() => {
         console.log('Driver connected to Emergency SignalR hub.');
-        this.hubConnection?.on('ReceiveEmergencyDispatch', (emergencyCase: any) => {
-          this.zone.run(() => {
-            const myAmbulanceId = this.data?.ambulance?.id;
-            if (!myAmbulanceId || emergencyCase.assignedAmbulanceId === myAmbulanceId) {
-              this.newMissionAlert = true;
-              this.loadDriverData();
-            }
-          });
-        });
+        this.hubConnection?.on(
+          'ReceiveEmergencyDispatch',
+          (emergencyCase: any) => {
+            this.zone.run(() => {
+              const myAmbulanceId = this.data?.ambulance?.id;
+              if (
+                !myAmbulanceId ||
+                emergencyCase.assignedAmbulanceId === myAmbulanceId
+              ) {
+                this.newMissionAlert = true;
+                this.toast.warning(
+                  '🚨 Urgent: New Emergency Mission Assigned by Dispatch!',
+                );
+                this.loadDriverData();
+              }
+            });
+          },
+        );
       })
       .catch((err) => {
         console.warn('Driver SignalR connection fallback:', err);
@@ -144,18 +207,24 @@ export class DriverComponent implements OnInit, OnDestroy {
 
   startLiveTracking(): void {
     if (!navigator.geolocation) {
-      this.message = 'GPS location is not supported by this browser.';
+      this.toast.warning('GPS location is not supported by this browser.');
       return;
     }
-    this.message = 'Acquiring high-accuracy GPS telemetry…';
+    this.toast.info('Acquiring high-accuracy GPS telemetry…');
     this.watchId = navigator.geolocation.watchPosition(
       (position) => this.publishLocation(position.coords),
       (err) => {
         console.warn('GPS watch error:', err);
-        this.message = 'GPS signal lost or permission denied. Defaulting to Addis telemetry.';
+        this.toast.warning(
+          'GPS signal lost or permission denied. Defaulting to Addis telemetry.',
+        );
         this.setAddisDefaultLocation();
       },
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10_000,
+        timeout: 20_000,
+      },
     );
     this.liveTracking = true;
   }
@@ -166,7 +235,7 @@ export class DriverComponent implements OnInit, OnDestroy {
       this.watchId = null;
     }
     this.liveTracking = false;
-    this.message = 'Live tracking paused.';
+    this.toast.info('Live tracking paused.');
   }
 
   shareLocation(): void {
@@ -174,18 +243,29 @@ export class DriverComponent implements OnInit, OnDestroy {
       this.setAddisDefaultLocation();
       return;
     }
-    this.message = 'Querying satellite GPS coordinates…';
+    this.toast.info('Querying satellite GPS coordinates…');
     navigator.geolocation.getCurrentPosition(
       (position) => this.publishLocation(position.coords, true),
       (err) => {
         console.warn('GPS single position failed:', err);
+        this.toast.warning(
+          'GPS signal unavailable. Defaulting to Addis telemetry.',
+        );
         this.setAddisDefaultLocation();
       },
-      { enableHighAccuracy: true, timeout: 10_000 },
+      {
+        enableHighAccuracy: true,
+        timeout: 10_000,
+      },
     );
   }
 
-  selectPresetLocation(preset: { label: string; lat: number; lng: number; alt: number }): void {
+  selectPresetLocation(preset: {
+    label: string;
+    lat: number;
+    lng: number;
+    alt: number;
+  }): void {
     const coords: Coordinates = {
       latitude: preset.lat,
       longitude: preset.lng,
@@ -206,21 +286,32 @@ export class DriverComponent implements OnInit, OnDestroy {
       isEstimatedAltitude: true,
     };
     this.setLocation(defaultCoords);
-    this.sendLocationPayload(defaultCoords, 'Addis Central Station (Simulated)');
-    this.message = 'Simulated Addis Ababa GPS coordinates active (Tikur Anbessa area).';
+    this.sendLocationPayload(
+      defaultCoords,
+      'Addis Central Station (Simulated)',
+    );
+    this.toast.info(
+      'Simulated Addis Ababa GPS coordinates active (Tikur Anbessa area).',
+    );
   }
 
-  private publishLocation(coords: GeolocationCoordinates, force = false): void {
+  private publishLocation(
+    coords: GeolocationCoordinates,
+    force = false,
+  ): void {
     const now = Date.now();
-    const altitude = coords.altitude != null ? Math.round(coords.altitude) : 2355;
+    const altitude =
+      coords.altitude != null ? Math.round(coords.altitude) : 2355;
     const isEstimated = coords.altitude == null;
 
     const loc: Coordinates = {
       latitude: coords.latitude,
       longitude: coords.longitude,
       altitude,
-      accuracy: coords.accuracy != null ? Math.round(coords.accuracy) : null,
-      speed: coords.speed != null ? Math.round(coords.speed * 3.6) : null, // km/h
+      accuracy:
+        coords.accuracy != null ? Math.round(coords.accuracy) : null,
+      speed:
+        coords.speed != null ? Math.round(coords.speed * 3.6) : null,
       isEstimatedAltitude: isEstimated,
     };
 
@@ -243,15 +334,17 @@ export class DriverComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.zone.run(() => {
-            this.message = this.liveTracking
-              ? '📡 Real-time telemetry broadcasting to Central Dispatch.'
-              : '✅ Position telemetry successfully transmitted to dispatch.';
+            if (!this.liveTracking) {
+              this.toast.success(
+                '✅ Position telemetry successfully transmitted to dispatch.',
+              );
+            }
             this.cdr.detectChanges();
           });
         },
         error: () => {
           this.zone.run(() => {
-            this.message = 'Unable to send telemetry to server.';
+            this.toast.error('Unable to send telemetry to server.');
             this.cdr.detectChanges();
           });
         },

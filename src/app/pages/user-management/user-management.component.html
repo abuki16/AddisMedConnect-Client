@@ -20,11 +20,6 @@
     <!-- CREATE / EDIT USER FORM -->
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <h2>{{ editingId ? 'Edit Account' : 'Register New Staff Member' }}</h2>
-      
-      <!-- Alert Message -->
-      <div class="notice" [class.error-notice]="isErrorMessage" [class.success-notice]="!isErrorMessage" *ngIf="message">
-        {{ isErrorMessage ? '⚠️ ' : '✅ ' }}{{ message }}
-      </div>
 
       <div class="form-grid-2">
         <label>

@@ -1,9 +1,10 @@
-import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { ToastService } from '../../core/toast.service';
 import { apiUrl } from '../../core/api.config';
 import { BedSignalRService } from '../../services/bed-signalr.service';
 
@@ -22,24 +23,42 @@ export interface HospitalBed {
 @Component({
   selector: 'app-bed-management',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    RouterLink,
+  ],
   templateUrl: './bed-management.component.html',
   styleUrl: './bed-management.component.scss',
 })
 export class BedManagementComponent implements OnInit {
+  public auth = inject(AuthService);
+  private toast = inject(ToastService);
+  private http = inject(HttpClient);
+  private fb = inject(FormBuilder);
+  private cdr = inject(ChangeDetectorRef);
+  private zone = inject(NgZone);
+  private bedSignalR = inject(BedSignalRService);
+
   beds: HospitalBed[] = [];
   hospitals: any[] = [];
   loading = true;
   saving = false;
-  message = '';
-  isErrorMessage = false;
 
   // Filter state
   selectedHospitalFilter = '';
   selectedWardFilter = '';
   selectedStatusFilter = '';
 
-  readonly wardOptions = ['Emergency', 'ICU', 'Trauma', 'Pediatrics', 'Maternity'];
+  readonly wardOptions = [
+    'Emergency',
+    'ICU',
+    'Trauma',
+    'Pediatrics',
+    'Maternity',
+  ];
+
   readonly statusOptions = [
     { value: 0, label: 'Available (Free)' },
     { value: 1, label: 'Reserved (En Route)' },
@@ -47,24 +66,14 @@ export class BedManagementComponent implements OnInit {
     { value: 3, label: 'Maintenance / Blocked' },
   ];
 
-  bedForm: FormGroup;
-  showCreateModal = false;
+  bedForm: FormGroup = this.fb.group({
+    bedNumber: ['', [Validators.required, Validators.minLength(2)]],
+    wardType: ['Emergency', Validators.required],
+    code: ['', [Validators.required, Validators.minLength(3)]],
+    hospitalId: ['', Validators.required],
+  });
 
-  constructor(
-    public auth: AuthService,
-    private http: HttpClient,
-    private fb: FormBuilder,
-    private cdr: ChangeDetectorRef,
-    private zone: NgZone,
-    private bedSignalR: BedSignalRService,
-  ) {
-    this.bedForm = this.fb.group({
-      bedNumber: ['', [Validators.required, Validators.minLength(2)]],
-      wardType: ['Emergency', Validators.required],
-      code: ['', [Validators.required, Validators.minLength(3)]],
-      hospitalId: ['', Validators.required],
-    });
-  }
+  showCreateModal = false;
 
   ngOnInit(): void {
     this.loadHospitals();
@@ -77,8 +86,12 @@ export class BedManagementComponent implements OnInit {
 
   loadHospitals(): void {
     this.http.get<any[]>(`${apiUrl}/hospitals`).subscribe({
-      next: (rows) => (this.hospitals = rows || []),
-      error: () => (this.hospitals = []),
+      next: (rows) => {
+        this.hospitals = rows || [];
+      },
+      error: () => {
+        this.hospitals = [];
+      },
     });
   }
 
@@ -95,8 +108,10 @@ export class BedManagementComponent implements OnInit {
       error: (err) => {
         this.zone.run(() => {
           this.loading = false;
-          this.message = err.error?.message || 'Could not load hospital bed registry.';
-          this.isErrorMessage = true;
+          const msg =
+            err.error?.message ||
+            'Could not load hospital bed registry.';
+          this.toast.error(msg);
           this.cdr.detectChanges();
         });
       },
@@ -159,7 +174,6 @@ export class BedManagementComponent implements OnInit {
       hospitalId: this.hospitals.length ? this.hospitals[0].id : '',
     });
     this.showCreateModal = true;
-    this.message = '';
   }
 
   closeCreateModal(): void {
@@ -169,13 +183,11 @@ export class BedManagementComponent implements OnInit {
   createBed(): void {
     if (this.bedForm.invalid) {
       this.bedForm.markAllAsTouched();
+      this.toast.warning('Please fill in all required bed details.');
       return;
     }
 
     this.saving = true;
-    this.message = '';
-    this.isErrorMessage = false;
-
     const payload = this.bedForm.getRawValue();
 
     this.http.post<HospitalBed>(`${apiUrl}/beds`, payload).subscribe({
@@ -183,16 +195,19 @@ export class BedManagementComponent implements OnInit {
         this.zone.run(() => {
           this.saving = false;
           this.showCreateModal = false;
-          this.message = `✅ Bed ${created.bedNumber} (${created.wardType}) successfully registered in system.`;
-          this.isErrorMessage = false;
+          this.toast.success(
+            `Bed ${created.bedNumber} (${created.wardType}) registered successfully.`,
+          );
           this.loadBeds();
         });
       },
       error: (err) => {
         this.zone.run(() => {
           this.saving = false;
-          this.message = err.error?.message || 'Failed to register bed. Check unique bed code.';
-          this.isErrorMessage = true;
+          const msg =
+            err.error?.message ||
+            'Failed to register bed. Check unique bed code.';
+          this.toast.error(msg);
           this.cdr.detectChanges();
         });
       },
@@ -200,16 +215,21 @@ export class BedManagementComponent implements OnInit {
   }
 
   updateStatus(bed: HospitalBed, newStatus: number): void {
-    this.http.patch(`${apiUrl}/beds/${bed.id}/status`, { status: newStatus }).subscribe({
-      next: () => {
-        this.message = `Bed ${bed.bedNumber} status updated to ${this.getStatusLabel(newStatus)}.`;
-        this.isErrorMessage = false;
-        this.loadBeds();
-      },
-      error: (err) => {
-        this.message = err.error?.message || 'Could not update bed status.';
-        this.isErrorMessage = true;
-      },
-    });
+    this.http
+      .patch(`${apiUrl}/beds/${bed.id}/status`, { status: newStatus })
+      .subscribe({
+        next: () => {
+          const statusName = this.getStatusLabel(newStatus);
+          this.toast.success(
+            `Bed ${bed.bedNumber} status updated to ${statusName}.`,
+          );
+          this.loadBeds();
+        },
+        error: (err) => {
+          const msg =
+            err.error?.message || 'Could not update bed status.';
+          this.toast.error(msg);
+        },
+      });
   }
 }

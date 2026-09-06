@@ -1,9 +1,14 @@
 import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  Validators,
+} from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
+import { ToastService } from '../../core/toast.service';
 
 @Component({
   standalone: true,
@@ -14,7 +19,8 @@ import { AuthService } from '../../core/auth.service';
         <p class="eyebrow">MINISTRY OF HEALTH · ADDIS ABABA</p>
         <h1>Emergency Care, Connected.</h1>
         <p class="lead-text">
-          Unified Emergency Referral, Real-Time Bed Coordination &amp; Ambulance Telemetry Network for Addis Ababa Healthcare Facilities.
+          Unified Emergency Referral, Real-Time Bed Coordination &amp; Ambulance
+          Telemetry Network for Addis Ababa Healthcare Facilities.
         </p>
 
         <div class="system-highlights">
@@ -22,53 +28,86 @@ import { AuthService } from '../../core/auth.service';
             <span class="highlight-icon">🚨</span>
             <div>
               <strong>24/7 Central Dispatch</strong>
-              <small>Rapid caller intake, nearest facility ranking &amp; mission coordination</small>
+              <small>
+                Rapid caller intake, nearest facility ranking &amp; mission coordination
+              </small>
             </div>
           </div>
           <div class="highlight-item">
             <span class="highlight-icon">🛏️</span>
             <div>
               <strong>Real-Time Bed Registry</strong>
-              <small>Live tracking of available, reserved, and occupied beds across hospitals</small>
+              <small>
+                Live tracking of available, reserved, and occupied beds across hospitals
+              </small>
             </div>
           </div>
           <div class="highlight-item">
             <span class="highlight-icon">🚑</span>
             <div>
               <strong>Ambulance Telemetry</strong>
-              <small>High-accuracy GPS location, elevation ASL &amp; mission dispatch</small>
+              <small>
+                High-accuracy GPS location, elevation ASL &amp; mission dispatch
+              </small>
             </div>
           </div>
           <div class="highlight-item">
             <span class="highlight-icon">🏥</span>
             <div>
               <strong>Clinical Triage &amp; Intake</strong>
-              <small>ETAT assessment, immediate admissions &amp; structured discharge</small>
+              <small>
+                ETAT assessment, immediate admissions &amp; structured discharge
+              </small>
             </div>
           </div>
         </div>
       </section>
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <div class="active-session" *ngIf="auth.isLoggedIn() && auth.user() as u">
-          <p>Currently signed in as <strong>{{ u.fullName }}</strong> (<em>{{ u.role }}</em>)</p>
+        <div
+          class="active-session"
+          *ngIf="auth.isLoggedIn() && auth.user() as u"
+        >
+          <p>
+            Currently signed in as
+            <strong>{{ u.fullName }}</strong> (<em>{{ u.role }}</em>)
+          </p>
           <div class="session-actions">
-            <button type="button" class="btn-continue" (click)="continueToDashboard()">
+            <button
+              type="button"
+              class="btn-continue"
+              (click)="continueToDashboard()"
+            >
               Go to {{ u.role }} Dashboard &rarr;
             </button>
-            <button type="button" class="btn-signout" (click)="auth.logout()">
+            <button
+              type="button"
+              class="btn-signout"
+              (click)="signOut()"
+            >
               Sign out
             </button>
           </div>
         </div>
 
-        <h2>{{ auth.isLoggedIn() ? 'Or sign in with another account' : 'Sign in to AddisMedConnect' }}</h2>
-        
+        <h2>
+          {{
+            auth.isLoggedIn()
+              ? 'Or sign in with another account'
+              : 'Sign in to AddisMedConnect'
+          }}
+        </h2>
+
         <label>
           Email address or Username
-          <input type="text" formControlName="email" placeholder="name@domain.et or username" autocomplete="username" />
+          <input
+            type="text"
+            formControlName="email"
+            placeholder="name@domain.et or username"
+            autocomplete="username"
+          />
         </label>
-        
+
         <label>
           Password
           <div class="input-with-action">
@@ -78,15 +117,22 @@ import { AuthService } from '../../core/auth.service';
               placeholder="••••••••••••"
               autocomplete="current-password"
             />
-            <button type="button" class="btn-peek" (click)="showPassword = !showPassword" tabindex="-1" title="Toggle password visibility">
+            <button
+              type="button"
+              class="btn-peek"
+              (click)="showPassword = !showPassword"
+              tabindex="-1"
+              title="Toggle password visibility"
+            >
               {{ showPassword ? '🙈 Hide' : '👁️ Show' }}
             </button>
           </div>
         </label>
-        
-        <p class="error" *ngIf="error">⚠️ {{ error }}</p>
-        
-        <button type="submit" [disabled]="form.invalid || loading">
+
+        <button
+          type="submit"
+          [disabled]="form.invalid || loading"
+        >
           {{ loading ? 'Signing in…' : 'Sign in' }}
         </button>
       </form>
@@ -296,34 +342,49 @@ import { AuthService } from '../../core/auth.service';
 export class LoginComponent {
   showPassword = false;
   loading = false;
-  error = '';
   form;
 
   constructor(
     private fb: FormBuilder,
     public auth: AuthService,
+    private toast: ToastService,
     private router: Router,
     private cdr: ChangeDetectorRef,
   ) {
     this.form = this.fb.group({
-      email: ['', [Validators.required]],
-      password: ['', Validators.required],
+      email: [
+        '',
+        [Validators.required],
+      ],
+      password: [
+        '',
+        Validators.required,
+      ],
     });
   }
 
-  continueToDashboard() {
+  continueToDashboard(): void {
     this.router.navigateByUrl(this.auth.landingPath());
   }
 
-  submit() {
-    if (this.form.invalid) return;
+  signOut(): void {
+    this.auth.logout();
+    this.toast.info('You have been signed out.');
+  }
+
+  submit(): void {
+    if (this.form.invalid) {
+      return;
+    }
 
     this.loading = true;
-    this.error = '';
     const { email, password } = this.form.getRawValue();
 
     this.auth
-      .login((email || '').trim(), password || '')
+      .login(
+        (email || '').trim(),
+        password || '',
+      )
       .pipe(
         finalize(() => {
           this.loading = false;
@@ -332,17 +393,27 @@ export class LoginComponent {
       )
       .subscribe({
         next: (r) => {
+          this.toast.success(
+            `Welcome back, ${r.user.fullName || r.user.email}!`,
+          );
           this.auth.completeLogin(r);
           this.router.navigateByUrl(this.auth.landingPath(r.user.role));
         },
         error: (err) => {
+          let errorMsg = '';
           if (err.status === 401) {
-            this.error = err.error?.message || 'Invalid email/username or password.';
+            errorMsg =
+              err.error?.message ||
+              'Invalid email/username or password.';
           } else if (err.status === 0) {
-            this.error = 'Cannot connect to the AddisMedConnect backend server. Please verify the API is running on http://localhost:5057.';
+            errorMsg =
+              'Cannot connect to the AddisMedConnect backend service. Please verify the API server is running.';
           } else {
-            this.error = err.error?.message || `Authentication service error (${err.status}).`;
+            errorMsg =
+              err.error?.message ||
+              `Authentication service error (${err.status}).`;
           }
+          this.toast.error(errorMsg);
           this.cdr.markForCheck();
         },
       });

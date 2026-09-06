@@ -30,10 +30,6 @@
       <div class="badge-active">{{ cases.length }} Occupied Beds</div>
     </div>
 
-    <!-- NOTICES -->
-    <div class="notice success-notice" *ngIf="message">{{ message }}</div>
-    <div class="notice error-notice" *ngIf="errorMessage">{{ errorMessage }}</div>
-    
     <div class="empty" *ngIf="loading">
       <p>Loading admitted hospital admissions…</p>
     </div>

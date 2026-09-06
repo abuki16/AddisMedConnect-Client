@@ -26,26 +26,31 @@
             </h5>
           </div>
 
-          <!-- Error Message -->
-          <div *ngIf="errorMessage && !isLoadingCase" class="alert alert-danger">
-            {{ errorMessage }}
-          </div>
-
           <!-- Success State -->
-          <div *ngIf="successMessage" class="alert alert-success text-center py-4">
+          <div
+            *ngIf="isDispatched"
+            class="text-center py-4"
+          >
             <h4 class="fw-bold text-success mb-2">🎉 Dispatch Successful!</h4>
-            <p class="mb-3">{{ successMessage }}</p>
-            <button class="btn btn-primary px-4 fw-semibold" (click)="goToNewIntake()">
+            <p class="text-muted mb-4">
+              Resources have been assigned and dispatched to Incident #{{ incidentNumber }}.
+            </p>
+            <button
+              type="button"
+              class="btn btn-primary px-4 fw-semibold"
+              (click)="goToNewIntake()"
+            >
               Register Another Case
             </button>
           </div>
 
           <!-- Main Assignment Form (Hidden during loading or after success) -->
-          <ng-container *ngIf="!isLoadingCase && !successMessage">
+          <ng-container *ngIf="!isLoadingCase && !isDispatched">
             <div class="alert alert-info border-info mb-4">
               <h5 class="alert-heading fw-bold text-dark">Active Incident Target</h5>
               <p class="mb-0">
-                Incident Number: <span class="badge bg-dark fs-6 ms-1">{{ incidentNumber }}</span>
+                Incident Number:
+                <span class="badge bg-dark fs-6 ms-1">{{ incidentNumber }}</span>
               </p>
             </div>
 
