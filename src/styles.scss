@@ -91,3 +91,58 @@
     }
   }
 }
+
+/* Universal Screen-Fitting Modals (Prevents Buttons & Content From Being Cut Off) */
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1050 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1rem !important;
+  overflow-y: auto !important;
+}
+
+.modal-dialog,
+.modal-card {
+  max-height: min(90vh, 720px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: auto !important;
+
+  > form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+}
+
+.modal-header {
+  flex-shrink: 0 !important;
+}
+
+.modal-body {
+  overflow-y: auto !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+  }
+}
+
+.modal-footer,
+.modal-actions {
+  flex-shrink: 0 !important;
+}
+

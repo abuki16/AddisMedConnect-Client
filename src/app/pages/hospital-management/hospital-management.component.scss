@@ -444,8 +444,9 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    padding: 1.5rem;
+    padding: 1rem;
     backdrop-filter: blur(2px);
+    overflow-y: auto;
   }
 
   .modal-card {
@@ -453,17 +454,21 @@
     border-radius: 14px;
     width: 100%;
     max-width: 580px;
+    max-height: min(90vh, 720px);
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     animation: modalIn 0.2s ease-out;
 
     .modal-header {
-      padding: 1.25rem 1.75rem;
+      padding: 1.1rem 1.6rem;
       background: #f8fafc;
       border-bottom: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0;
 
       h2 {
         margin: 0;
@@ -486,10 +491,13 @@
     }
 
     form {
-      padding: 1.75rem;
+      padding: 1.4rem 1.6rem 0;
       display: flex;
       flex-direction: column;
-      gap: 1.1rem;
+      gap: 1rem;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
 
       .form-grid-2 {
         display: grid;
@@ -548,9 +556,13 @@
         display: flex;
         justify-content: flex-end;
         gap: 0.75rem;
-        margin-top: 0.75rem;
-        padding-top: 1rem;
+        margin-top: auto;
+        padding: 1rem 0;
+        position: sticky;
+        bottom: 0;
+        background: #ffffff;
         border-top: 1px solid #f1f5f9;
+        flex-shrink: 0;
 
         .btn-cancel {
           background: #f1f5f9;

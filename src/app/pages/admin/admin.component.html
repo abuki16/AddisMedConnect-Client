@@ -19,20 +19,6 @@
       <a routerLink="/discharge" class="nav-link">📋 Patient Discharge &amp; Beds</a>
       <a routerLink="/driver" class="nav-link">🚑 Ambulance Fleet &amp; Telemetry</a>
     </nav>
-
-    <div class="user-footer">
-      <div class="user-badge">
-        <strong>{{ auth.user()?.fullName }}</strong>
-        <small>{{ auth.user()?.role }}</small>
-      </div>
-      <button
-        type="button"
-        class="btn-signout"
-        (click)="signOut()"
-      >
-        Sign out
-      </button>
-    </div>
   </aside>
 
   <section class="main-content">
@@ -42,14 +28,39 @@
         <h1>Addis Ababa Emergency Control Center</h1>
         <p class="sub-header">Live system telemetry, hospital capacities, and active emergency missions.</p>
       </div>
-      <div class="header-buttons">
+
+      <div class="header-actions">
+        <span class="live-status-pill" [ngClass]="connectionStatus">
+          <span class="pulse-dot"></span>
+          {{ connectionStatus === 'connected' ? 'Live WebSocket Feed' : (connectionStatus === 'connecting' ? 'Connecting...' : 'Offline') }}
+        </span>
+
         <button
           type="button"
           class="btn-refresh"
-          (click)="load(true)"
+          [disabled]="isLoading"
+          (click)="loadMetrics(true)"
         >
-          🔄 Refresh Data
+          {{ isLoading ? '⏳ Refreshing...' : '🔄 Refresh Data' }}
         </button>
+
+        <div class="user-profile-card">
+          <div class="user-avatar" title="{{ auth.user()?.fullName }}">
+            {{ (auth.user()?.fullName?.[0] || 'A') | uppercase }}
+          </div>
+          <div class="user-details">
+            <span class="user-name">{{ auth.user()?.fullName || 'Administrator' }}</span>
+            <span class="user-role-tag">{{ auth.user()?.role || 'SystemAdmin' }}</span>
+          </div>
+          <button
+            type="button"
+            class="btn-signout-top"
+            (click)="signOut()"
+            title="Sign out of system"
+          >
+            <span>🚪 Sign out</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -68,32 +79,32 @@
       <article class="metric-card">
         <span class="metric-icon">📋</span>
         <div>
-          <strong>{{ cases.length }}</strong>
-          <span>Total Incidents</span>
+          <strong>{{ isLoading ? '...' : metrics.totalIncidents }}</strong>
+          <span>Total Incidents ({{ metrics.activeIncidents }} Active)</span>
         </div>
       </article>
 
       <article class="metric-card" routerLink="/admin/hospitals" style="cursor: pointer;" title="Open Hospital Network Management">
         <span class="metric-icon">🏥</span>
         <div>
-          <strong>{{ hospitals.length }}</strong>
+          <strong>{{ isLoading ? '...' : metrics.partnerHospitals }}</strong>
           <span>Partner Hospitals &rarr;</span>
         </div>
       </article>
 
-      <article class="metric-card">
+      <article class="metric-card" routerLink="/admin/ambulances" style="cursor: pointer;" title="Open Ambulance Fleet Management">
         <span class="metric-icon">🚑</span>
         <div>
-          <strong>{{ ambulances.length }}</strong>
-          <span>Fleet Units</span>
+          <strong>{{ isLoading ? '...' : (metrics.availableAmbulances + ' / ' + metrics.fleetUnits) }}</strong>
+          <span>Fleet (Free / Total) &rarr;</span>
         </div>
       </article>
 
-      <article class="metric-card metric-beds">
+      <article class="metric-card metric-beds" routerLink="/admin/beds" style="cursor: pointer;" title="Open Bed Coordination & Registry">
         <span class="metric-icon">🛏️</span>
         <div>
-          <strong>{{ availableBedsCount }} / {{ beds.length }}</strong>
-          <span>Free Beds Available</span>
+          <strong>{{ isLoading ? '...' : (metrics.availableBeds + ' / ' + metrics.totalBeds) }}</strong>
+          <span>Free Beds Available &rarr;</span>
         </div>
       </article>
     </div>
@@ -101,28 +112,31 @@
     <!-- ALL INCIDENTS OVERVIEW -->
     <div class="panel">
       <div class="panel-header">
-        <h2>Live Emergency Incidents Directory ({{ cases.length }})</h2>
+        <h2>Live Emergency Incidents Directory ({{ metrics.recentCases.length }})</h2>
         <span class="realtime-badge">🟢 Real-time Network Feed</span>
       </div>
 
       <div class="case-list">
-        <article class="row" *ngFor="let c of cases">
-          <div class="col-id">
-            <b>{{ c.incidentNumber }}</b>
-            <small>{{ c.createdAt | date:'shortTime' }}</small>
-          </div>
-          <div class="col-patient">
-            <strong>{{ c.patientName }}</strong>
-            <small>{{ c.incidentReason }}</small>
-          </div>
-          <div class="col-hospital">
-            <span>🏥 {{ c.targetHospitalName || 'Hospital Pending' }}</span>
-          </div>
-          <div class="col-status">
-            <span class="status-badge status-{{ c.status?.toLowerCase() }}">{{ c.status }}</span>
-          </div>
-        </article>
-        <p class="empty-state" *ngIf="!cases.length">No emergency incidents have been registered in the system.</p>
+        <p class="empty-state" *ngIf="isLoading">⏳ Synchronizing live metropolitan incident telemetry...</p>
+        <ng-container *ngIf="!isLoading">
+          <article class="row" *ngFor="let c of metrics.recentCases">
+            <div class="col-id">
+              <b>{{ c.incidentNumber }}</b>
+              <small>{{ c.createdAt | date:'shortTime' }}</small>
+            </div>
+            <div class="col-patient">
+              <strong>{{ c.patientName }}</strong>
+              <small>{{ c.incidentReason }}</small>
+            </div>
+            <div class="col-hospital">
+              <span>🏥 {{ c.targetHospitalName || 'Hospital Pending' }}</span>
+            </div>
+            <div class="col-status">
+              <span class="status-badge status-{{ c.status?.toLowerCase() }}">{{ c.status }}</span>
+            </div>
+          </article>
+          <p class="empty-state" *ngIf="!metrics.recentCases.length">No emergency incidents have been registered in the system.</p>
+        </ng-container>
       </div>
     </div>
   </section>
