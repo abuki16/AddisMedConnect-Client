@@ -9,6 +9,7 @@ import {
   ValidationErrors,
 } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
 import { apiUrl } from '../../core/api.config';
@@ -35,6 +36,7 @@ function passwordMatchValidator(
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    RouterLink,
   ],
   templateUrl: './user-management.component.html',
   styleUrl: './user-management.component.scss',

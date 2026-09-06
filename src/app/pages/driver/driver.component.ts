@@ -12,6 +12,7 @@ import {
   SafeResourceUrl,
 } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
 import * as signalR from '@microsoft/signalr';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
@@ -31,7 +32,7 @@ export interface Coordinates {
 
 @Component({
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './driver.component.html',
   styleUrl: './driver.component.scss',
 })

@@ -16,6 +16,9 @@
         </select>
       </div>
 
+      <a *ngIf="auth.user()?.role === 'SystemAdmin'" [routerLink]="auth.landingPath()" class="btn-back-dashboard">
+        &larr; Back to {{ auth.dashboardTitle() }}
+      </a>
       <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading">Refresh List</button>
       <button type="button" class="btn-signout" (click)="auth.logout()">Sign out</button>
     </div>

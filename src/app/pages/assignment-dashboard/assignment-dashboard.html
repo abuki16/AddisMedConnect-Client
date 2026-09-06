@@ -17,6 +17,9 @@
         <span class="role-pill">{{ u.role }}</span>
         <span class="user-name">{{ u.fullName }}</span>
       </div>
+      <a [routerLink]="auth.landingPath()" class="btn-back-dashboard">
+        &larr; Back to {{ auth.dashboardTitle() }}
+      </a>
       <button type="button" class="btn-new-intake" (click)="goToNewIntake()">
         ➕ Register Another Case
       </button>

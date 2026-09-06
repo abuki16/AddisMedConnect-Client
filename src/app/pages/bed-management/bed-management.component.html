@@ -15,6 +15,9 @@
       <p>Configure hospital wards, monitor live bed statuses, and register new emergency beds across Addis Ababa.</p>
     </div>
     <div class="header-actions">
+      <a [routerLink]="auth.landingPath()" class="btn-back-dashboard">
+        &larr; Back to {{ auth.dashboardTitle() }}
+      </a>
       <button type="button" class="btn-add-bed" (click)="openCreateModal()">
         ➕ Register New Bed
       </button>

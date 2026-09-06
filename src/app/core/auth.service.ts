@@ -99,6 +99,20 @@ export class AuthService {
     return '/login';
   }
 
+  dashboardTitle(role = this.userState()?.role): string {
+    const r = (role || '').trim().toLowerCase();
+    if (r === 'dispatcher' || r === 'dispatch') return 'Dispatch Console';
+    if (r === 'ambulancedriver' || r === 'driver') return 'Ambulance Command';
+    if (r === 'triagenurse' || r === 'triage') return 'Triage Station';
+    if (r === 'dischargeclerk' || r === 'discharge') return 'Discharge Console';
+    if (r === 'systemadmin' || r === 'admin') return 'Control Center';
+    return 'Dashboard';
+  }
+
+  navigateToDashboard(): void {
+    this.router.navigateByUrl(this.landingPath());
+  }
+
   private readUser(): AuthUser | null {
     try {
       const token = sessionStorage.getItem('amc_access_token');

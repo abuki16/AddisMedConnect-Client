@@ -12,7 +12,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth.service';
 import { ToastService } from '../../../core/toast.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -46,7 +46,7 @@ interface HospitalRecommendation {
 @Component({
   selector: 'app-create-case',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './create-case.component.html',
   styleUrls: ['./create-case.component.scss'],
 })

@@ -15,6 +15,9 @@
           <span class="pulse-dot"></span>
           {{ isRealtimeConnected ? 'Live Sync Active' : 'Connecting...' }}
         </span>
+        <a *ngIf="isAdmin" [routerLink]="auth.landingPath()" class="btn-back-dashboard">
+          &larr; Back to {{ auth.dashboardTitle() }}
+        </a>
         <button type="button" class="btn-signout" (click)="signOut()">Sign out</button>
       </div>
     </div>

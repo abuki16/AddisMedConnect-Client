@@ -10,6 +10,9 @@
         <span class="role-badge">{{ u.role }}</span>
         <span class="user-name">{{ u.fullName }}</span>
       </div>
+      <a *ngIf="auth.user()?.role === 'SystemAdmin'" [routerLink]="auth.landingPath()" class="btn-back-dashboard">
+        &larr; Back to {{ auth.dashboardTitle() }}
+      </a>
       <button type="button" class="btn-refresh" (click)="refresh()">
         🔄 Refresh
       </button>

@@ -49,3 +49,45 @@
     font-weight: 500;
   }
 }
+
+/* Universal Back to Dashboard Button */
+.btn-back-dashboard {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #007c75;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  padding: 0.52rem 0.95rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.84rem;
+  border: 1px solid #005f5a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1.2;
+  white-space: nowrap;
+
+  &:hover {
+    background: #005f5a;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(0, 124, 117, 0.25);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &.btn-outline {
+    background: #ffffff;
+    color: #007c75 !important;
+    border: 1.5px solid #007c75;
+
+    &:hover {
+      background: #f0fdf4;
+      color: #005f5a !important;
+      border-color: #005f5a;
+    }
+  }
+}

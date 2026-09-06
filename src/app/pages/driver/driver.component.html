@@ -13,6 +13,9 @@
       </p>
     </div>
     <div class="header-right">
+      <a *ngIf="isAdmin" [routerLink]="auth.landingPath()" class="btn-back-dashboard">
+        &larr; Back to {{ auth.dashboardTitle() }}
+      </a>
       <button type="button" class="btn-refresh" (click)="loadDriverData()">Refresh Data</button>
       <button type="button" class="btn-signout" (click)="signOut()">Sign out</button>
     </div>
