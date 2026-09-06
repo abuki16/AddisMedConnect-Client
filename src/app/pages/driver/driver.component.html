@@ -71,6 +71,95 @@
               <h3>{{ data.assignment.patientName }}</h3>
             </div>
 
+            <!-- CALLER CONTACT & DISPATCH COMMUNICATION BOX -->
+            <div class="caller-contact-box">
+              <div class="caller-contact-header">
+                <span class="caller-badge-icon">📞</span>
+                <div class="caller-contact-meta">
+                  <span class="caller-contact-label">REPORTING CALLER (CONTACT FOR DETAILS &amp; DIRECTIONS):</span>
+                  <div class="caller-contact-person">
+                    <strong class="caller-name">{{ data.assignment.callerName || 'Emergency Dispatch Caller' }}</strong>
+                    <span class="caller-phone-pill" *ngIf="data.assignment.callerPhone && data.assignment.callerPhone !== 'N/A'">
+                      {{ data.assignment.callerPhone }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="caller-action-bar">
+                <a
+                  *ngIf="data.assignment.callerPhone && data.assignment.callerPhone !== 'N/A'"
+                  [href]="'tel:' + data.assignment.callerPhone"
+                  class="btn-call-caller"
+                  title="Call Reporting Party"
+                >
+                  <span class="call-icon">📞</span>
+                  <span>Call Caller ({{ data.assignment.callerPhone }})</span>
+                </a>
+                <button
+                  type="button"
+                  class="btn-nav-pickup"
+                  (click)="openNavigation(data.assignment.pickupLatitude, data.assignment.pickupLongitude, data.assignment.pickupAddress)"
+                  title="Open GPS Route in Google Maps"
+                >
+                  <span>🗺️ Route to Patient</span>
+                </button>
+              </div>
+              <p class="caller-guidance">
+                ℹ️ Tap <strong>Call Caller</strong> to confirm patient status, exact gate/building access, or landmarks before arrival.
+              </p>
+            </div>
+
+            <!-- OPERATIONAL MISSION STATUS PROGRESSION -->
+            <div class="mission-status-panel">
+              <div class="status-tracker-bar">
+                <div class="status-step" [class.step-active]="data.assignment.status === 'Dispatched'">
+                  <span class="step-num">1</span>
+                  <span class="step-title">Dispatched</span>
+                </div>
+                <div class="status-step-connector" [class.connector-active]="data.assignment.status === 'InTransit' || data.assignment.status === 'ArrivedAtTriage'"></div>
+                <div class="status-step" [class.step-active]="data.assignment.status === 'InTransit'">
+                  <span class="step-num">2</span>
+                  <span class="step-title">In Transit</span>
+                </div>
+                <div class="status-step-connector" [class.connector-active]="data.assignment.status === 'ArrivedAtTriage'"></div>
+                <div class="status-step" [class.step-active]="data.assignment.status === 'ArrivedAtTriage'">
+                  <span class="step-num">3</span>
+                  <span class="step-title">At Triage</span>
+                </div>
+              </div>
+
+              <div class="mission-status-actions">
+                <button
+                  type="button"
+                  class="btn-mission-step btn-start-transit"
+                  *ngIf="data.assignment.status === 'Dispatched'"
+                  [disabled]="isUpdatingStatus"
+                  (click)="updateMissionStatus('InTransit')"
+                >
+                  {{ isUpdatingStatus ? 'Updating Status...' : '🚀 Start En Route to Patient (In Transit)' }}
+                </button>
+
+                <button
+                  type="button"
+                  class="btn-mission-step btn-mark-arrived"
+                  *ngIf="data.assignment.status === 'InTransit'"
+                  [disabled]="isUpdatingStatus"
+                  (click)="updateMissionStatus('ArrivedAtTriage')"
+                >
+                  {{ isUpdatingStatus ? 'Updating Status...' : '🏥 Arrived at Hospital Triage Gate' }}
+                </button>
+
+                <div class="arrived-notice" *ngIf="data.assignment.status === 'ArrivedAtTriage'">
+                  <span class="notice-icon">🏥</span>
+                  <div>
+                    <strong>Arrived at Receiving Facility:</strong>
+                    <p>Awaiting Triage Nurse approval. Once the triage nurse admits the patient and occupies the bed, your ambulance will automatically be freed and stationed at this hospital.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="complaint-box">
               <span class="box-label">Chief Complaint / Condition:</span>
               <p>{{ data.assignment.incidentReason }}</p>
@@ -83,20 +172,34 @@
                 <span *ngIf="data.assignment.pickupLatitude" class="coords-note">
                   ({{ data.assignment.pickupLatitude | number:'1.4-4' }}, {{ data.assignment.pickupLongitude | number:'1.4-4' }})
                 </span>
+                <button
+                  type="button"
+                  class="btn-link-nav"
+                  (click)="openNavigation(data.assignment.pickupLatitude, data.assignment.pickupLongitude, data.assignment.pickupAddress)"
+                >
+                  🗺️ Google Maps Directions &rarr;
+                </button>
               </dd>
 
               <dt>🏥 Receiving Facility</dt>
               <dd>
                 <strong>{{ data.assignment.targetHospital?.name || 'Assigned Hospital' }}</strong>
                 <small>{{ data.assignment.targetHospital?.address || 'Addis Ababa' }}</small>
+                <button
+                  type="button"
+                  class="btn-link-nav"
+                  (click)="openNavigation(data.assignment.targetHospital?.latitude, data.assignment.targetHospital?.longitude, data.assignment.targetHospital?.name)"
+                >
+                  🏥 Route to Facility &rarr;
+                </button>
               </dd>
 
               <dt>🛏️ Reserved Bed at Hospital</dt>
               <dd>
                 <span class="bed-reserved-tag">
-                  {{ data.assignment.assignedBedNumber ? ('Bed ' + data.assignment.assignedBedNumber) : 'Reserved in Ward' }}
+                  {{ data.assignment.assignedBedNumber ? ('Bed #' + data.assignment.assignedBedNumber) : (data.assignment.assignedBed?.bedNumber ? ('Bed #' + data.assignment.assignedBed?.bedNumber) : 'Reserved in Ward') }}
                 </span>
-                <small class="bed-note">(Held by Dispatch, Nurse will occupy upon arrival)</small>
+                <small class="bed-note">(Held by Dispatch, Nurse will occupy upon triage intake)</small>
               </dd>
             </dl>
           </ng-container>
@@ -105,7 +208,17 @@
             <div class="standby-box">
               <span class="standby-icon">🚑</span>
               <h3>Ambulance is Available on Standby</h3>
-              <p>Your vehicle is currently registered as free. When the central emergency dispatcher assigns an incident to plate <strong>{{ data.ambulance?.plateNumber }}</strong>, the alert and route will immediately populate here.</p>
+              <p>Vehicle <strong>{{ data.ambulance?.plateNumber }}</strong> is registered as free in the citywide fleet.</p>
+              <p class="standby-station" *ngIf="stationedHospitalName || data.ambulance?.currentLatitude">
+                📍 Stationed at: <strong>{{ stationedHospitalName || 'Assigned Health Facility' }}</strong>
+                <span *ngIf="data.ambulance?.currentLatitude">
+                  ({{ data.ambulance.currentLatitude | number:'1.4-4' }}° N, {{ data.ambulance.currentLongitude | number:'1.4-4' }}° E)
+                </span>
+              </p>
+              <p class="standby-hint">
+                When the central emergency dispatcher assigns an incident to plate <strong>{{ data.ambulance?.plateNumber }}</strong>,
+                an audible chime alert will play and patient coordinates will populate immediately.
+              </p>
             </div>
           </ng-template>
         </article>

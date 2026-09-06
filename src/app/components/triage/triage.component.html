@@ -186,7 +186,7 @@
                     No Ambulance Unit Assigned (Direct Arrival / Private Transport)
                   </strong>
                   <small *ngIf="selectedCase.ambulancePlateNumber">
-                    {{ releaseAmbulance ? 'Ambulance will be marked Available in the citywide emergency fleet.' : 'Ambulance will remain held for transfer/referral.' }}
+                    {{ releaseAmbulance ? ('Ambulance will be marked Available and stationed at ' + (selectedCase.targetHospitalName || 'this facility') + ' with tracked GPS coordinates.') : 'Ambulance will remain held for transfer/referral.' }}
                   </small>
                 </div>
               </div>
@@ -197,7 +197,7 @@
                   name="releaseAmbulance"
                 />
                 <span class="checkbox-label-text">
-                  <strong>Free &amp; release ambulance</strong> to active citywide fleet upon triage completion
+                  <strong>Free &amp; release ambulance</strong> — vehicle is stationed at this hospital and marked Available for new dispatches
                 </span>
               </label>
             </div>

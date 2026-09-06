@@ -421,7 +421,7 @@ export class TriageComponent implements OnInit, OnDestroy {
           this.ngZone.run(() => {
             this.isSubmitting = false;
             const ambMessage = this.releaseAmbulance
-              ? ' · Ambulance returned to fleet'
+              ? ` · Ambulance freed & stationed at ${this.selectedCase?.targetHospitalName || 'hospital'}`
               : ' · Ambulance held for transfer';
             const bedMsg = bedDisplay ? ` · ${bedDisplay} is now OCCUPIED` : '';
             this.toast.success(

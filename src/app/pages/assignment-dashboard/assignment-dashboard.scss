@@ -266,6 +266,31 @@
       font-size: 0.88rem;
       color: #55707d;
     }
+
+    .incident-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.5rem 1rem;
+      margin-top: 0.8rem;
+      padding-top: 0.6rem;
+      border-top: 1px dashed #cadbe2;
+
+      .meta-item {
+        font-size: 0.83rem;
+        color: #334155;
+
+        .meta-label {
+          font-weight: 700;
+          color: #007c75;
+          margin-right: 0.35rem;
+        }
+
+        .meta-val {
+          font-weight: 500;
+          color: #0c2d42;
+        }
+      }
+    }
   }
 
   .target-status {
@@ -390,6 +415,224 @@
 
     &:hover {
       background: #d4e3e8;
+    }
+  }
+}
+
+.ambulance-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  .ai-recommendation-pill {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+  }
+}
+
+.recommendation-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin: 0.8rem 0 1.2rem;
+}
+
+.recommendation-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  &.card-selected {
+    background: #ffffff;
+    border-color: #007c75;
+    box-shadow: 0 0 0 2px rgba(0, 124, 117, 0.2), 0 4px 14px rgba(0, 124, 117, 0.12);
+  }
+
+  &.hospital-stationed-card {
+    border-left: 4px solid #007c75;
+  }
+
+  &.fastest-scene-card {
+    border-left: 4px solid #f59e0b;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+
+    .card-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+
+      &.badge-hospital {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+      }
+
+      &.badge-fastest {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+      }
+    }
+
+    .card-rank {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+  }
+
+  .card-body {
+    flex: 1;
+
+    .card-plate {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #0c2d42;
+      margin: 0 0 0.25rem;
+    }
+
+    .card-driver {
+      font-size: 0.85rem;
+      color: #475569;
+      margin: 0 0 0.4rem;
+    }
+
+    .card-metric {
+      font-size: 0.84rem;
+      color: #0f172a;
+      margin: 0 0 0.4rem;
+      background: #f1f5f9;
+      padding: 0.35rem 0.6rem;
+      border-radius: 6px;
+    }
+
+    .card-reason {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin: 0 0 0.8rem;
+      line-height: 1.4;
+    }
+  }
+
+  .btn-select-card {
+    background: #e2ecef;
+    color: #0c2d42;
+    border: 1px solid #cadbe2;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+
+    &:hover {
+      background: #007c75;
+      color: #ffffff;
+      border-color: #007c75;
+    }
+
+    &.btn-selected {
+      background: #007c75;
+      color: #ffffff;
+      border-color: #007c75;
+    }
+  }
+}
+
+.dropdown-sublabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.4rem;
+}
+
+.selected-ambulance-info {
+  margin-top: 0.8rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+
+  .sel-amb-icon {
+    font-size: 1.5rem;
+    background: #ffffff;
+    padding: 0.3rem 0.5rem;
+    border-radius: 8px;
+    border: 1px solid #bbf7d0;
+  }
+
+  .sel-amb-content {
+    flex: 1;
+
+    .sel-amb-top {
+      font-size: 0.92rem;
+      color: #14532d;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+
+      .sel-badge {
+        font-size: 0.72rem;
+        background: #dcfce7;
+        color: #15803d;
+        padding: 0.15rem 0.5rem;
+        border-radius: 6px;
+        font-weight: 700;
+      }
+    }
+
+    .sel-amb-reason {
+      margin: 0.25rem 0 0.4rem;
+      font-size: 0.82rem;
+      color: #166534;
+    }
+
+    .sel-amb-stats {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: 0.78rem;
+      color: #15803d;
+
+      span {
+        background: #ffffff;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #dcfce7;
+      }
     }
   }
 }

@@ -211,6 +211,264 @@
   }
 }
 
+/* CALLER CONTACT & DIRECT PHONE LINK */
+.caller-contact-box {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-left: 5px solid #0284c7;
+  padding: 1rem 1.2rem;
+  border-radius: 8px;
+  margin-bottom: 1.2rem;
+
+  .caller-contact-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.8rem;
+
+    .caller-badge-icon {
+      font-size: 1.8rem;
+      background: #e0f2fe;
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    .caller-contact-meta {
+      flex: 1;
+
+      .caller-contact-label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #0369a1;
+        letter-spacing: 0.05em;
+      }
+
+      .caller-contact-person {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+
+        .caller-name {
+          font-size: 1.1rem;
+          color: #0c4a6e;
+        }
+
+        .caller-phone-pill {
+          background: #e0f2fe;
+          color: #0369a1;
+          padding: 0.15rem 0.6rem;
+          border-radius: 12px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          font-family: monospace;
+        }
+      }
+    }
+  }
+
+  .caller-action-bar {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+
+    .btn-call-caller {
+      background: #0284c7;
+      color: #ffffff;
+      padding: 0.6rem 1.1rem;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+      transition: all 0.2s;
+
+      &:hover {
+        background: #0369a1;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);
+      }
+    }
+
+    .btn-nav-pickup {
+      background: #0f766e;
+      color: #ffffff;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #115e59;
+      }
+    }
+  }
+
+  .caller-guidance {
+    margin: 0.4rem 0 0;
+    font-size: 0.78rem;
+    color: #0369a1;
+    line-height: 1.4;
+  }
+}
+
+/* MISSION STATUS TRACKER & CONTROLS */
+.mission-status-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+
+  .status-tracker-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid #f1f5f9;
+
+    .status-step {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #94a3b8;
+
+      .step-num {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+      }
+
+      &.step-active {
+        color: #0284c7;
+
+        .step-num {
+          background: #0284c7;
+          color: #ffffff;
+        }
+      }
+    }
+
+    .status-step-connector {
+      flex: 1;
+      height: 3px;
+      background: #e2e8f0;
+      margin: 0 0.5rem;
+
+      &.connector-active {
+        background: #0284c7;
+      }
+    }
+  }
+
+  .mission-status-actions {
+    .btn-mission-step {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+
+      &.btn-start-transit {
+        background: #f59e0b;
+        color: #ffffff;
+
+        &:hover:not(:disabled) {
+          background: #d97706;
+        }
+      }
+
+      &.btn-mark-arrived {
+        background: #10b981;
+        color: #ffffff;
+
+        &:hover:not(:disabled) {
+          background: #059669;
+        }
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    .arrived-notice {
+      display: flex;
+      gap: 0.6rem;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      padding: 0.8rem;
+      border-radius: 8px;
+      color: #166534;
+      font-size: 0.85rem;
+
+      .notice-icon {
+        font-size: 1.4rem;
+      }
+
+      strong {
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+
+      p {
+        margin: 0;
+        font-size: 0.82rem;
+      }
+    }
+  }
+}
+
+.btn-link-nav {
+  display: inline-block;
+  margin-top: 0.4rem;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #bae6fd;
+  }
+}
+
 .complaint-box {
   background: #f8fafb;
   border-left: 4px solid #007c75;
@@ -307,6 +565,27 @@
     color: #627b87;
     font-size: 0.92rem;
     line-height: 1.5;
+  }
+
+  .standby-station {
+    margin-top: 0.8rem;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    display: inline-block;
+    font-size: 0.95rem;
+
+    strong {
+      color: #047857;
+    }
+  }
+
+  .standby-hint {
+    margin-top: 0.6rem;
+    font-size: 0.82rem;
+    color: #94a3b8;
   }
 }
 

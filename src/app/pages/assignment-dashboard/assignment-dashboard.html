@@ -62,6 +62,24 @@
               <p class="target-hospital" *ngIf="targetHospitalName">
                 Target Facility: <strong>{{ targetHospitalName }}</strong>
               </p>
+              <div class="incident-meta-grid" *ngIf="patientName || incidentReason">
+                <div class="meta-item" *ngIf="patientName">
+                  <span class="meta-label">Patient:</span>
+                  <span class="meta-val">{{ patientName }}</span>
+                </div>
+                <div class="meta-item" *ngIf="callerName">
+                  <span class="meta-label">Caller:</span>
+                  <span class="meta-val">{{ callerName }} ({{ callerPhone }})</span>
+                </div>
+                <div class="meta-item" *ngIf="pickupAddress">
+                  <span class="meta-label">Pickup Scene:</span>
+                  <span class="meta-val">{{ pickupAddress }}</span>
+                </div>
+                <div class="meta-item" *ngIf="incidentReason">
+                  <span class="meta-label">Complaint:</span>
+                  <span class="meta-val">{{ incidentReason }}</span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="target-status">
@@ -90,22 +108,127 @@
             </div>
           </div>
 
-          <!-- Ambulance Selection -->
+          <!-- Ambulance Selection with Smart Recommendation Engine -->
           <div class="form-group">
-            <label class="field-label">
-              <span>🚑 Dispatch Ambulance Unit</span>
-              <span class="required">*</span>
-            </label>
+            <div class="ambulance-section-header">
+              <label class="field-label">
+                <span>🚑 Dispatch Ambulance Unit</span>
+                <span class="required">*</span>
+              </label>
+              <span class="ai-recommendation-pill" *ngIf="recommendedAmbulances.length > 0">
+                ✨ Proximity & Telemetry Recommendations Active
+              </span>
+            </div>
             <p class="field-help">
-              Select an active fleet unit to deploy for emergency patient pickup.
+              Ranked automatically: Prioritizes units <strong>stationed at {{ targetHospitalName || 'the assigned hospital' }}</strong> (zero hospital prepositioning time) and units <strong>closest to the patient scene</strong>.
             </p>
-            <select formControlName="ambulanceId" class="styled-select" [class.input-error]="assignmentForm.get('ambulanceId')?.invalid && assignmentForm.get('ambulanceId')?.touched">
+
+            <!-- Quick Recommendation Cards -->
+            <div class="recommendation-cards-container" *ngIf="recommendedAmbulances.length > 0">
+              <!-- Hospital Unit Card -->
+              <div
+                *ngIf="hospitalAmbulance as hospAmb"
+                class="recommendation-card hospital-stationed-card"
+                [class.card-selected]="assignmentForm.get('ambulanceId')?.value === hospAmb.id"
+                (click)="selectAmbulance(hospAmb.id)"
+              >
+                <div class="card-header">
+                  <span class="card-badge badge-hospital">🏥 Stationed at {{ targetHospitalName || 'Hospital' }}</span>
+                  <span class="card-rank">Top Hospital Unit</span>
+                </div>
+                <div class="card-body">
+                  <h4 class="card-plate">{{ hospAmb.plateNumber }}</h4>
+                  <p class="card-driver">👤 Driver: <strong>{{ hospAmb.driverName || 'Certified Driver' }}</strong></p>
+                  <p class="card-metric">
+                    📍 <strong>0 km</strong> from destination · <strong>~{{ hospAmb.distanceToPatientKm }} km</strong> to patient scene
+                  </p>
+                  <p class="card-reason">{{ hospAmb.recommendationReason }}</p>
+                </div>
+                <button
+                  type="button"
+                  class="btn-select-card"
+                  [class.btn-selected]="assignmentForm.get('ambulanceId')?.value === hospAmb.id"
+                >
+                  {{ assignmentForm.get('ambulanceId')?.value === hospAmb.id ? '✓ Selected Unit' : 'Select Hospital Unit' }}
+                </button>
+              </div>
+
+              <!-- Nearest to Patient Scene Card -->
+              <div
+                *ngIf="nearestAmbulance as nearAmb"
+                class="recommendation-card fastest-scene-card"
+                [class.card-selected]="assignmentForm.get('ambulanceId')?.value === nearAmb.id"
+                (click)="selectAmbulance(nearAmb.id)"
+              >
+                <div class="card-header">
+                  <span class="card-badge badge-fastest">⚡ Nearest to Patient</span>
+                  <span class="card-rank">Fastest Wheels-to-Scene</span>
+                </div>
+                <div class="card-body">
+                  <h4 class="card-plate">{{ nearAmb.plateNumber }}</h4>
+                  <p class="card-driver">👤 Driver: <strong>{{ nearAmb.driverName || 'Certified Driver' }}</strong></p>
+                  <p class="card-metric">
+                    🚀 <strong>{{ nearAmb.distanceToPatientKm }} km</strong> to scene · <strong>~{{ nearAmb.estimatedMinutesToPatient }} min ETA</strong>
+                  </p>
+                  <p class="card-reason">{{ nearAmb.recommendationReason }}</p>
+                </div>
+                <button
+                  type="button"
+                  class="btn-select-card"
+                  [class.btn-selected]="assignmentForm.get('ambulanceId')?.value === nearAmb.id"
+                >
+                  {{ assignmentForm.get('ambulanceId')?.value === nearAmb.id ? '✓ Selected Unit' : 'Select Nearest Unit' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Ambulance Dropdown -->
+            <label class="dropdown-sublabel" *ngIf="recommendedAmbulances.length > 0">
+              Or pick from all available fleet units (sorted by recommendation rank):
+            </label>
+            <select
+              formControlName="ambulanceId"
+              class="styled-select"
+              [class.input-error]="assignmentForm.get('ambulanceId')?.invalid && assignmentForm.get('ambulanceId')?.touched"
+            >
               <option value="">-- Select Available Ambulance --</option>
-              <option *ngFor="let amb of availableAmbulances" [value]="amb.id">
-                {{ amb.plateNumber }} — Driver: {{ amb.driverName || 'Certified Fleet Driver' }}
-              </option>
+              <ng-container *ngIf="recommendedAmbulances.length > 0">
+                <option *ngFor="let amb of recommendedAmbulances" [value]="amb.id">
+                  {{ amb.recommendationBadge }} · {{ amb.plateNumber }} ({{ amb.driverName || 'Driver' }}) —
+                  {{ amb.distanceToPatientKm !== null && amb.distanceToPatientKm !== undefined ? amb.distanceToPatientKm + ' km away (~' + amb.estimatedMinutesToPatient + ' min ETA)' : 'Active Fleet' }}
+                </option>
+              </ng-container>
+              <ng-container *ngIf="recommendedAmbulances.length === 0">
+                <option *ngFor="let amb of availableAmbulances" [value]="amb.id">
+                  {{ amb.plateNumber }} — Driver: {{ amb.driverName || 'Certified Fleet Driver' }}
+                </option>
+              </ng-container>
             </select>
-            <div *ngIf="availableAmbulances.length === 0" class="resource-alert alert-warning">
+
+            <!-- Selected Ambulance Summary Info -->
+            <div class="selected-ambulance-info" *ngIf="selectedAmbulanceDetails as selAmb">
+              <div class="sel-amb-icon">🚑</div>
+              <div class="sel-amb-content">
+                <div class="sel-amb-top">
+                  <strong>{{ selAmb.plateNumber }}</strong> · Driver: {{ selAmb.driverName || 'Certified Fleet Driver' }}
+                  <span class="sel-badge">{{ selAmb.recommendationBadge }}</span>
+                </div>
+                <p class="sel-amb-reason">{{ selAmb.recommendationReason }}</p>
+                <div class="sel-amb-stats">
+                  <span *ngIf="selAmb.distanceToPatientKm !== null && selAmb.distanceToPatientKm !== undefined">
+                    Distance to Scene: <strong>{{ selAmb.distanceToPatientKm }} km</strong> (~{{ selAmb.estimatedMinutesToPatient }} min ETA)
+                  </span>
+                  <span *ngIf="selAmb.distanceToHospitalKm !== null && selAmb.distanceToHospitalKm !== undefined">
+                    Distance to Hospital: <strong>{{ selAmb.distanceToHospitalKm }} km</strong>
+                  </span>
+                  <span *ngIf="selAmb.phoneNumber">
+                    Driver Phone: <strong>{{ selAmb.phoneNumber }}</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="availableAmbulances.length === 0 && recommendedAmbulances.length === 0" class="resource-alert alert-warning">
               ⚠️ No available ambulances online in fleet registry at this moment.
             </div>
           </div>

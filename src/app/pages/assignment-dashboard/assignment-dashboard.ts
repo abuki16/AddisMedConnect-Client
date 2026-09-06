@@ -21,6 +21,24 @@ import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth.service';
 import { apiUrl } from '../../core/api.config';
 
+export interface RecommendedAmbulance {
+  id: string;
+  plateNumber: string;
+  driverName?: string;
+  phoneNumber?: string;
+  currentLatitude?: number;
+  currentLongitude?: number;
+  isAvailable: boolean;
+  isAtTargetHospital: boolean;
+  stationedHospitalName?: string;
+  distanceToHospitalKm?: number;
+  distanceToPatientKm?: number;
+  estimatedMinutesToPatient?: number;
+  recommendationBadge: string;
+  recommendationReason: string;
+  priorityRank: number;
+}
+
 @Component({
   selector: 'app-assignment-dashboard',
   standalone: true,
@@ -64,10 +82,38 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
   incidentNumber: string | null = null;
   targetHospitalId: string | null = null;
   targetHospitalName: string = '';
+  patientName: string = '';
+  callerName: string = '';
+  callerPhone: string = '';
+  incidentReason: string = '';
+  pickupAddress: string = '';
+  pickupLatitude: number | null = null;
+  pickupLongitude: number | null = null;
+
+  recommendedAmbulances: RecommendedAmbulance[] = [];
+  isLoadingRecommendations = false;
+
   assignmentForm!: FormGroup;
   isAssigning = false;
   isLoadingCase = true;
   isDispatched = false;
+
+  get hospitalAmbulance(): RecommendedAmbulance | undefined {
+    return this.recommendedAmbulances.find((a) => a.isAtTargetHospital);
+  }
+
+  get nearestAmbulance(): RecommendedAmbulance | undefined {
+    return (
+      this.recommendedAmbulances.find((a) => a.priorityRank === 2) ||
+      this.recommendedAmbulances.find((a) => !a.isAtTargetHospital && a.distanceToPatientKm !== null)
+    );
+  }
+
+  get selectedAmbulanceDetails(): RecommendedAmbulance | undefined {
+    const selectedId = this.assignmentForm?.get('ambulanceId')?.value;
+    if (!selectedId) return undefined;
+    return this.recommendedAmbulances.find((a) => a.id === selectedId);
+  }
 
   constructor(
     private route: ActivatedRoute,
@@ -94,6 +140,7 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
     this.signalRSub = this.bedSignalRService.bedStatusUpdated$.subscribe(() => {
       if (this.targetHospitalId) {
         this.resourceStore.loadAvailableBedsForHospital(this.targetHospitalId);
+        this.fetchRecommendedAmbulances();
         this.cdr.detectChanges();
       }
     });
@@ -130,6 +177,14 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
             caseData?.TargetHospitalName ||
             '';
 
+          this.patientName = caseData?.patientName || caseData?.PatientName || '';
+          this.callerName = caseData?.callerName || caseData?.CallerName || '';
+          this.callerPhone = caseData?.callerPhone || caseData?.CallerPhone || '';
+          this.incidentReason = caseData?.incidentReason || caseData?.IncidentReason || '';
+          this.pickupAddress = caseData?.pickupAddress || caseData?.PickupAddress || '';
+          this.pickupLatitude = caseData?.pickupLatitude ?? caseData?.PickupLatitude ?? null;
+          this.pickupLongitude = caseData?.pickupLongitude ?? caseData?.PickupLongitude ?? null;
+
           if (hospitalId) {
             this.targetHospitalId = hospitalId;
             this.bedSignalRService.joinHospitalGroup(hospitalId);
@@ -139,6 +194,8 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
               'Could not determine the target hospital for this incident.',
             );
           }
+
+          this.fetchRecommendedAmbulances();
           this.cdr.detectChanges();
         },
         error: (err) => {
@@ -148,6 +205,42 @@ export class AssignmentDashboardComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         },
       });
+  }
+
+  fetchRecommendedAmbulances(): void {
+    if (!this.incidentNumber) return;
+    this.isLoadingRecommendations = true;
+    this.http
+      .get<RecommendedAmbulance[]>(
+        `${apiUrl}/emergency-cases/${this.incidentNumber}/recommended-ambulances`
+      )
+      .subscribe({
+        next: (data) => {
+          this.isLoadingRecommendations = false;
+          this.recommendedAmbulances = data || [];
+
+          // Auto-select the top recommendation if no ambulance is currently picked
+          const currentVal = this.assignmentForm.get('ambulanceId')?.value;
+          if (!currentVal && this.recommendedAmbulances.length > 0) {
+            this.assignmentForm.patchValue({
+              ambulanceId: this.recommendedAmbulances[0].id,
+            });
+          }
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.isLoadingRecommendations = false;
+          console.warn('Could not load recommended ambulances:', err);
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  selectAmbulance(id: string): void {
+    this.assignmentForm.patchValue({ ambulanceId: id });
+    this.assignmentForm.get('ambulanceId')?.markAsDirty();
+    this.assignmentForm.get('ambulanceId')?.markAsTouched();
+    this.cdr.detectChanges();
   }
 
   onConfirmAssignment(): void {
