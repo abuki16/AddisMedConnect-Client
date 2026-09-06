@@ -232,7 +232,7 @@ export class CreateCaseComponent implements OnInit {
     const patientNameControl = this.intakeForm.get('patientName');
 
     if (isChecked) {
-      patientNameControl?.setValue('John/Jane Doe (Unknown)');
+      patientNameControl?.setValue('Unknown Patient');
       patientNameControl?.clearValidators();
       patientNameControl?.disable();
     } else {
@@ -344,6 +344,9 @@ export class CreateCaseComponent implements OnInit {
 
     const formValues = this.intakeForm.getRawValue();
     delete formValues.isUnknownPatient;
+    if (!formValues.patientName || !formValues.patientName.trim()) {
+      formValues.patientName = 'Unknown Patient';
+    }
 
     this.http.post(`${apiUrl}/emergency-cases`, formValues).subscribe({
       next: (response: any) => {
